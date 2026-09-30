@@ -135,17 +135,19 @@ switch (_actionType) do {
             if (count _closestRadar > 0 && _isRadarHit) then {
                 _closestRadar params ["_rObj", "_rPos", "_rRange", "_rName"];
                 playSoundUI ["\A3\ui_f\data\sound\RscButton\soundClick.wss", 0.5, 1];
+                AIRDEF_selectedRadar = _rObj;
+                
                 private _ctrlInfo = _display displayCtrl 78510;
                 if (!isNull _ctrlInfo) then {
                     private _html = format [
-                        "<t color='#00FF44' font='PuristaBold' size='1.1'>[ПОСТ РЛС]</t><br/>" +
+                        "<t color='#00FF44' font='PuristaBold' size='1.1'>[АКТИВНЫЙ ПОСТ РЛС]</t><br/>" +
                         "<t color='#FFFFFF' font='PuristaBold'>ПОЗЫВНОЙ: </t><t color='#00FF44'>%1</t><br/>" +
                         "<t color='#555555'>--------------------------------</t><br/>" +
                         "<t color='#FFFFFF'>ТИП: </t><t color='#00FF44'>%2</t><br/>" +
                         "<t color='#FFFFFF'>РАДИУС ЗОНЫ: </t><t color='#00FF44'>%3 КМ</t><br/>" +
                         "<t color='#FFFFFF'>СТАТУС: </t><t color='#00FF44'>АКТИВЕН / ИЗЛУЧЕНИЕ</t><br/>" +
                         "<t color='#555555'>--------------------------------</t><br/>" +
-                        "<t color='#888888'>Для наведения перехватчика выберите союзный борт, затем цель.</t>",
+                        "<t color='#888888'>Кольца дальности и луч переключены на этот пост РЛС.</t>",
                         _rName, getText (configFile >> "CfgVehicles" >> typeOf _rObj >> "displayName"), round (_rRange / 1000)
                     ];
                     _ctrlInfo ctrlSetStructuredText parseText _html;
@@ -170,22 +172,38 @@ switch (_actionType) do {
         systemChat format ["[AIRDEF] Фильтр отображения: %1", _param];
     };
 
-    // ================= RE-CENTER RADAR =================
+    // ================= CYCLE / RE-CENTER RADAR =================
     case "CENTER_RADAR": {
-        private _map = _display displayCtrl 78501;
-        if (!isNull _map) then {
-            private _centerPos = getPosASL player;
-            private _radarRange = 25000;
-            if (count (missionNamespace getVariable ["AIRDEF_activeRadars", []]) > 0) then {
-                _centerPos = (AIRDEF_activeRadars select 0) select 1;
-                _radarRange = (AIRDEF_activeRadars select 0) select 2;
+        private _radars = missionNamespace getVariable ["AIRDEF_activeRadars", []];
+        if (count _radars > 0) then {
+            // Find current radar index
+            private _curIdx = -1;
+            {
+                if ((_x select 0) == (missionNamespace getVariable ["AIRDEF_selectedRadar", objNull])) exitWith {
+                    _curIdx = _forEachIndex;
+                };
+            } forEach _radars;
+            
+            // Cycle to next radar
+            private _nextIdx = (_curIdx + 1) % (count _radars);
+            private _targetRadar = _radars select _nextIdx;
+            AIRDEF_selectedRadar = _targetRadar select 0;
+            
+            private _centerPos = _targetRadar select 1;
+            private _radarRange = _targetRadar select 2;
+            private _rName = _targetRadar select 3;
+            
+            private _map = _display displayCtrl 78501;
+            if (!isNull _map) then {
+                private _wSize = if (isNil "worldSize" || { worldSize <= 0 }) then { 30000 } else { worldSize };
+                private _optimalScale = ((_radarRange * 2.3) / _wSize) max 0.15 min 0.95;
+                _map ctrlMapAnimAdd [0.4, _optimalScale, _centerPos];
+                ctrlMapAnimCommit _map;
             };
-            private _wSize = if (isNil "worldSize" || { worldSize <= 0 }) then { 30000 } else { worldSize };
-            private _optimalScale = ((_radarRange * 2.3) / _wSize) max 0.15 min 0.95;
-            _map ctrlMapAnimAdd [0.4, _optimalScale, _centerPos];
-            ctrlMapAnimCommit _map;
+            
+            systemChat format ["[AIRDEF] Активный радар: %1 (%2 км)", _rName, round (_radarRange / 1000)];
+            playSoundUI ["\A3\ui_f\data\sound\RscButton\soundClick.wss", 0.5, 1];
         };
-        playSoundUI ["\A3\ui_f\data\sound\RscButton\soundClick.wss", 0.5, 1];
     };
 
     // ================= TOGGLES =================

@@ -25,13 +25,25 @@ playSoundUI ["\A3\ui_f\data\sound\RscButton\soundClick.wss", 0.5, 1];
 
 private _map = _display displayCtrl 78501;
 
-// Center map on the first active radar or player position
+// Ensure selected radar is initialized and center on it
+private _radars = missionNamespace getVariable ["AIRDEF_activeRadars", []];
+private _radarObjList = _radars apply { _x select 0 };
+if (isNil "AIRDEF_selectedRadar" || { isNull AIRDEF_selectedRadar } || { !(AIRDEF_selectedRadar in _radarObjList) }) then {
+    if (count _radars > 0) then {
+        AIRDEF_selectedRadar = (_radars select 0) select 0;
+    } else {
+        AIRDEF_selectedRadar = player;
+    };
+};
+
 private _centerPos = getPosASL player;
 private _radarRange = 25000;
-if (count AIRDEF_activeRadars > 0) then {
-    _centerPos = (AIRDEF_activeRadars select 0) select 1;
-    _radarRange = (AIRDEF_activeRadars select 0) select 2;
-};
+{
+    if ((_x select 0) == AIRDEF_selectedRadar) exitWith {
+        _centerPos = _x select 1;
+        _radarRange = _x select 2;
+    };
+} forEach _radars;
 
 // Calculate initial map zoom scale so the entire radar coverage circle fits on screen
 private _wSize = if (isNil "worldSize" || { worldSize <= 0 }) then { 30000 } else { worldSize };

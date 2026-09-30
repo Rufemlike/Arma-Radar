@@ -22,125 +22,148 @@ if (_userSide in [sideLogic, civilian, sideUnknown]) then {
 };
 
 // ================= 1. FRIENDLY RADAR NETWORK (GREEN CRT) =================
+// Ensure active selected radar is valid
+private _radarObjList = AIRDEF_activeRadars apply { _x select 0 };
+if (isNil "AIRDEF_selectedRadar" || { isNull AIRDEF_selectedRadar } || { !(AIRDEF_selectedRadar in _radarObjList) }) then {
+    if (count AIRDEF_activeRadars > 0) then {
+        AIRDEF_selectedRadar = (AIRDEF_activeRadars select 0) select 0;
+    } else {
+        AIRDEF_selectedRadar = player;
+    };
+};
+
 {
     _x params ["_rObj", "_rPos", "_rRange", "_rName", "_phaseOffset"];
     private _rCenter2D = [_rPos select 0, _rPos select 1, 0];
+    private _isSelectedStation = (_rObj isEqualTo AIRDEF_selectedRadar) || { count AIRDEF_activeRadars == 1 };
     
-    if (AIRDEF_showRings) then {
-        // Outer boundary (100%)
-        _map drawEllipse [_rCenter2D, _rRange, _rRange, 0, [0, 1, 0.35, 0.85], "#(rgb,8,8,3)color(0,0,0,0)"];
-        for "_a" from 0 to 350 step 10 do {
-            private _p1 = [(_rCenter2D select 0) + (sin _a) * _rRange, (_rCenter2D select 1) + (cos _a) * _rRange, 0];
-            private _p2 = [(_rCenter2D select 0) + (sin (_a + 10)) * _rRange, (_rCenter2D select 1) + (cos (_a + 10)) * _rRange, 0];
-            _map drawLine [_p1, _p2, [0, 1, 0.35, 0.9]];
-        };
+    if (_isSelectedStation) then {
+        // === DETAILED CRT RINGS FOR SELECTED ACTIVE RADAR ONLY ===
+        if (AIRDEF_showRings) then {
+            // Outer boundary (100%)
+            _map drawEllipse [_rCenter2D, _rRange, _rRange, 0, [0, 1, 0.35, 0.85], "#(rgb,8,8,3)color(0,0,0,0)"];
+            for "_a" from 0 to 350 step 10 do {
+                private _p1 = [(_rCenter2D select 0) + (sin _a) * _rRange, (_rCenter2D select 1) + (cos _a) * _rRange, 0];
+                private _p2 = [(_rCenter2D select 0) + (sin (_a + 10)) * _rRange, (_rCenter2D select 1) + (cos (_a + 10)) * _rRange, 0];
+                _map drawLine [_p1, _p2, [0, 1, 0.35, 0.9]];
+            };
 
-        // 75% Range ring
-        _map drawEllipse [_rCenter2D, _rRange * 0.75, _rRange * 0.75, 0, [0, 0.85, 0.28, 0.50], "#(rgb,8,8,3)color(0,0,0,0)"];
-        for "_a" from 0 to 350 step 15 do {
-            private _p1 = [(_rCenter2D select 0) + (sin _a) * (_rRange * 0.75), (_rCenter2D select 1) + (cos _a) * (_rRange * 0.75), 0];
-            private _p2 = [(_rCenter2D select 0) + (sin (_a + 15)) * (_rRange * 0.75), (_rCenter2D select 1) + (cos (_a + 15)) * (_rRange * 0.75), 0];
-            _map drawLine [_p1, _p2, [0, 0.85, 0.28, 0.55]];
-        };
+            // 75% Range ring
+            _map drawEllipse [_rCenter2D, _rRange * 0.75, _rRange * 0.75, 0, [0, 0.85, 0.28, 0.50], "#(rgb,8,8,3)color(0,0,0,0)"];
+            for "_a" from 0 to 350 step 15 do {
+                private _p1 = [(_rCenter2D select 0) + (sin _a) * (_rRange * 0.75), (_rCenter2D select 1) + (cos _a) * (_rRange * 0.75), 0];
+                private _p2 = [(_rCenter2D select 0) + (sin (_a + 15)) * (_rRange * 0.75), (_rCenter2D select 1) + (cos (_a + 15)) * (_rRange * 0.75), 0];
+                _map drawLine [_p1, _p2, [0, 0.85, 0.28, 0.55]];
+            };
 
-        // 50% Range ring
-        _map drawEllipse [_rCenter2D, _rRange * 0.50, _rRange * 0.50, 0, [0, 0.8, 0.25, 0.55], "#(rgb,8,8,3)color(0,0,0,0)"];
-        for "_a" from 0 to 350 step 15 do {
-            private _p1 = [(_rCenter2D select 0) + (sin _a) * (_rRange * 0.5), (_rCenter2D select 1) + (cos _a) * (_rRange * 0.5), 0];
-            private _p2 = [(_rCenter2D select 0) + (sin (_a + 15)) * (_rRange * 0.5), (_rCenter2D select 1) + (cos (_a + 15)) * (_rRange * 0.5), 0];
-            _map drawLine [_p1, _p2, [0, 0.8, 0.25, 0.6]];
-        };
+            // 50% Range ring
+            _map drawEllipse [_rCenter2D, _rRange * 0.50, _rRange * 0.50, 0, [0, 0.8, 0.25, 0.55], "#(rgb,8,8,3)color(0,0,0,0)"];
+            for "_a" from 0 to 350 step 15 do {
+                private _p1 = [(_rCenter2D select 0) + (sin _a) * (_rRange * 0.5), (_rCenter2D select 1) + (cos _a) * (_rRange * 0.5), 0];
+                private _p2 = [(_rCenter2D select 0) + (sin (_a + 15)) * (_rRange * 0.5), (_rCenter2D select 1) + (cos (_a + 15)) * (_rRange * 0.5), 0];
+                _map drawLine [_p1, _p2, [0, 0.8, 0.25, 0.6]];
+            };
 
-        // 25% Range ring
-        _map drawEllipse [_rCenter2D, _rRange * 0.25, _rRange * 0.25, 0, [0, 0.65, 0.2, 0.45], "#(rgb,8,8,3)color(0,0,0,0)"];
-        for "_a" from 0 to 350 step 20 do {
-            private _p1 = [(_rCenter2D select 0) + (sin _a) * (_rRange * 0.25), (_rCenter2D select 1) + (cos _a) * (_rRange * 0.25), 0];
-            private _p2 = [(_rCenter2D select 0) + (sin (_a + 20)) * (_rRange * 0.25), (_rCenter2D select 1) + (cos (_a + 20)) * (_rRange * 0.25), 0];
-            _map drawLine [_p1, _p2, [0, 0.65, 0.2, 0.50]];
-        };
+            // 25% Range ring
+            _map drawEllipse [_rCenter2D, _rRange * 0.25, _rRange * 0.25, 0, [0, 0.65, 0.2, 0.45], "#(rgb,8,8,3)color(0,0,0,0)"];
+            for "_a" from 0 to 350 step 20 do {
+                private _p1 = [(_rCenter2D select 0) + (sin _a) * (_rRange * 0.25), (_rCenter2D select 1) + (cos _a) * (_rRange * 0.25), 0];
+                private _p2 = [(_rCenter2D select 0) + (sin (_a + 20)) * (_rRange * 0.25), (_rCenter2D select 1) + (cos (_a + 20)) * (_rRange * 0.25), 0];
+                _map drawLine [_p1, _p2, [0, 0.65, 0.2, 0.50]];
+            };
 
-        // 10% Range ring (close-in reference)
-        _map drawEllipse [_rCenter2D, _rRange * 0.10, _rRange * 0.10, 0, [0, 0.55, 0.18, 0.40], "#(rgb,8,8,3)color(0,0,0,0)"];
-        for "_a" from 0 to 350 step 30 do {
-            private _p1 = [(_rCenter2D select 0) + (sin _a) * (_rRange * 0.1), (_rCenter2D select 1) + (cos _a) * (_rRange * 0.1), 0];
-            private _p2 = [(_rCenter2D select 0) + (sin (_a + 30)) * (_rRange * 0.1), (_rCenter2D select 1) + (cos (_a + 30)) * (_rRange * 0.1), 0];
-            _map drawLine [_p1, _p2, [0, 0.55, 0.18, 0.45]];
-        };
-        
-        // Cardinal crosshairs (N-S, E-W)
-        _map drawLine [
-            [(_rCenter2D select 0) - _rRange, _rCenter2D select 1, 0],
-            [(_rCenter2D select 0) + _rRange, _rCenter2D select 1, 0],
-            [0, 0.7, 0.22, 0.35]
-        ];
-        _map drawLine [
-            [_rCenter2D select 0, (_rCenter2D select 1) - _rRange, 0],
-            [_rCenter2D select 0, (_rCenter2D select 1) + _rRange, 0],
-            [0, 0.7, 0.22, 0.35]
-        ];
-        
-        // Range distance labels along the North axis
-        {
-            private _distFraction = _x;
-            private _distKm = round ((_rRange * _distFraction) / 1000);
-            private _tickPos = [(_rCenter2D select 0), (_rCenter2D select 1) + (_rRange * _distFraction), 0];
+            // 10% Range ring (close-in reference)
+            _map drawEllipse [_rCenter2D, _rRange * 0.10, _rRange * 0.10, 0, [0, 0.55, 0.18, 0.40], "#(rgb,8,8,3)color(0,0,0,0)"];
+            for "_a" from 0 to 350 step 30 do {
+                private _p1 = [(_rCenter2D select 0) + (sin _a) * (_rRange * 0.1), (_rCenter2D select 1) + (cos _a) * (_rRange * 0.1), 0];
+                private _p2 = [(_rCenter2D select 0) + (sin (_a + 30)) * (_rRange * 0.1), (_rCenter2D select 1) + (cos (_a + 30)) * (_rRange * 0.1), 0];
+                _map drawLine [_p1, _p2, [0, 0.55, 0.18, 0.45]];
+            };
+            
+            // Cardinal crosshairs (N-S, E-W)
+            _map drawLine [
+                [(_rCenter2D select 0) - _rRange, _rCenter2D select 1, 0],
+                [(_rCenter2D select 0) + _rRange, _rCenter2D select 1, 0],
+                [0, 0.7, 0.22, 0.35]
+            ];
+            _map drawLine [
+                [_rCenter2D select 0, (_rCenter2D select 1) - _rRange, 0],
+                [_rCenter2D select 0, (_rCenter2D select 1) + _rRange, 0],
+                [0, 0.7, 0.22, 0.35]
+            ];
+            
+            // Range distance labels along the North axis
+            {
+                private _distFraction = _x;
+                private _distKm = round ((_rRange * _distFraction) / 1000);
+                private _tickPos = [(_rCenter2D select 0), (_rCenter2D select 1) + (_rRange * _distFraction), 0];
+                _map drawIcon [
+                    "#(argb,8,8,3)color(0,0,0,0)",
+                    [0, 0.85, 0.25, 0.75],
+                    _tickPos,
+                    0, 0, 0,
+                    format ["%1 КМ", _distKm],
+                    0,
+                    0.024,
+                    "EtelkaMonospacePro",
+                    "center"
+                ];
+            } forEach [0.25, 0.50, 0.75, 1.0];
+            
+            private _labelPos = [(_rCenter2D select 0), (_rCenter2D select 1) + _rRange + 400, 0];
             _map drawIcon [
                 "#(argb,8,8,3)color(0,0,0,0)",
-                [0, 0.85, 0.25, 0.75],
-                _tickPos,
+                [0.2, 1, 0.4, 0.95],
+                _labelPos,
                 0, 0, 0,
-                format ["%1 КМ", _distKm],
+                format ["%1 (ЗОНА: %2 КМ) [АКТИВЕН]", _rName, round (_rRange / 1000)],
                 0,
-                0.024,
-                "EtelkaMonospacePro",
+                0.028,
+                "EtelkaMonospaceProBold",
                 "center"
             ];
-        } forEach [0.25, 0.50, 0.75, 1.0];
+        };
         
-        private _labelPos = [(_rCenter2D select 0), (_rCenter2D select 1) + _rRange + 400, 0];
-        _map drawIcon [
-            "#(argb,8,8,3)color(0,0,0,0)",
-            [0.2, 1, 0.4, 0.95],
-            _labelPos,
-            0, 0, 0,
-            format ["%1 (ЗОНА: %2 КМ)", _rName, round (_rRange / 1000)],
-            0,
-            0.028,
-            "EtelkaMonospaceProBold",
-            "center"
-        ];
-    };
-    
-    if (AIRDEF_showSweep) then {
-        private _sweepAngle = ((time * AIRDEF_sweepSpeed) + _phaseOffset) % 360;
-        private _endPos = [
-            (_rCenter2D select 0) + (sin _sweepAngle) * _rRange,
-            (_rCenter2D select 1) + (cos _sweepAngle) * _rRange,
-            0
-        ];
-        _map drawLine [_rCenter2D, _endPos, [0.3, 1, 0.45, 0.85]];
-        
-        for "_i" from 1 to 3 do {
-            private _trailAngle = _sweepAngle - (_i * 2.0);
-            private _trailAlpha = 0.38 - (_i * 0.10);
-            private _trailPos = [
-                (_rCenter2D select 0) + (sin _trailAngle) * _rRange,
-                (_rCenter2D select 1) + (cos _trailAngle) * _rRange,
+        // Rotating sweep beam for selected radar only
+        if (AIRDEF_showSweep) then {
+            private _sweepAngle = ((time * AIRDEF_sweepSpeed) + _phaseOffset) % 360;
+            private _endPos = [
+                (_rCenter2D select 0) + (sin _sweepAngle) * _rRange,
+                (_rCenter2D select 1) + (cos _sweepAngle) * _rRange,
                 0
             ];
-            _map drawLine [_rCenter2D, _trailPos, [0, 0.75, 0.22, _trailAlpha]];
+            _map drawLine [_rCenter2D, _endPos, [0.3, 1, 0.45, 0.85]];
+            
+            for "_i" from 1 to 3 do {
+                private _trailAngle = _sweepAngle - (_i * 2.0);
+                private _trailAlpha = 0.38 - (_i * 0.10);
+                private _trailPos = [
+                    (_rCenter2D select 0) + (sin _trailAngle) * _rRange,
+                    (_rCenter2D select 1) + (cos _trailAngle) * _rRange,
+                    0
+                ];
+                _map drawLine [_rCenter2D, _trailPos, [0, 0.75, 0.22, _trailAlpha]];
+            };
+        };
+    } else {
+        // === SECONDARY RADAR STATION: CLEAN FAINT OUTLINE ONLY ===
+        if (AIRDEF_showRings) then {
+            _map drawEllipse [_rCenter2D, _rRange, _rRange, 0, [0, 0.7, 0.25, 0.25], ""];
         };
     };
     
+    // Station icon & label
     if (AIRDEF_filter in ["ALL", "FRIENDLY", "DATALINK"]) then {
+        private _iconColor = if (_isSelectedStation) then { [0.2, 1, 0.4, 0.95] } else { [0.1, 0.65, 0.25, 0.75] };
+        private _iconText  = if (_isSelectedStation) then { format ["[*] %1", _rName] } else { format ["[РЛС] %1", _rName] };
         _map drawIcon [
             "\A3\ui_f\data\map\markers\nato\b_installation.paa",
-            [0.2, 1, 0.4, 0.95],
+            _iconColor,
             _rCenter2D,
             22, 22, 0,
-            _rName,
+            _iconText,
             0,
-            0.028,
+            0.026,
             "EtelkaMonospaceProBold",
             "right"
         ];
