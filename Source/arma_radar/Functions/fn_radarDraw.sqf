@@ -171,6 +171,125 @@ if (isNil "AIRDEF_selectedRadar" || { isNull AIRDEF_selectedRadar } || { !(AIRDE
 } forEach AIRDEF_activeRadars;
 
 
+// ================= 1.5. AIRPORTS & RECOVERY BASES =================
+if (isNil "AIRDEF_discoveredAirports" || { count (missionNamespace getVariable ["AIRDEF_discoveredAirports", []]) == 0 }) then {
+    private _airports = [];
+
+    // 1. Engine airports (allAirports)
+    {
+        private _apt = _x;
+        private _pos = if (_apt isEqualType 0) then { getAirportPosition _apt } else { getPosATL _apt };
+        if (count _pos >= 2 && { !(_pos isEqualTo [0,0,0]) }) then {
+            private _name = "";
+            private _locs = nearestLocations [_pos, ["Airport", "NameCityCapital", "NameCity", "NameVillage", "NameLocal"], 3000];
+            if (count _locs > 0) then {
+                private _locText = text (_locs select 0);
+                if (_locText != "") then {
+                    _name = format ["Аэродром %1", _locText];
+                };
+            };
+            if (_name == "") then {
+                _name = if (_apt isEqualType 0) then { format ["Аэродром #%1", _apt] } else { getText (configFile >> "CfgVehicles" >> typeOf _apt >> "displayName") };
+            };
+            _airports pushBack [_apt, _pos, _name, "AIRPORT"];
+        };
+    } forEach allAirports;
+
+    // 2. Named map locations of type "Airport" (if not already close to an existing entry)
+    private _wSize = if (isNil "worldSize" || { worldSize <= 0 }) then { 40000 } else { worldSize };
+    private _aptLocs = nearestLocations [[_wSize / 2, _wSize / 2, 0], ["Airport"], _wSize max 40000];
+    {
+        private _locPos = locationPosition _x;
+        private _locText = text _x;
+        if (_locText == "") then { _locText = "Аэродром"; };
+        private _alreadyAdded = false;
+        {
+            if ((_x select 1) distance2D _locPos < 1500) exitWith { _alreadyAdded = true; };
+        } forEach _airports;
+
+        if (!_alreadyAdded) then {
+            _airports pushBack [-1, _locPos, _locText, "AIRPORT"];
+        };
+    } forEach _aptLocs;
+
+    // 3. Aircraft carriers on the map
+    private _carriers = (allMissionObjects "Land_Carrier_01_base_F") + (allMissionObjects "Carrier_01_base_F");
+    {
+        private _cPos = getPosATL _x;
+        private _alreadyAdded = false;
+        {
+            if ((_x select 1) distance2D _cPos < 800) exitWith { _alreadyAdded = true; };
+        } forEach _airports;
+        if (!_alreadyAdded) then {
+            _airports pushBack [_x, _cPos, "Авианосец (Carrier)", "CARRIER"];
+        };
+    } forEach _carriers;
+
+    AIRDEF_discoveredAirports = _airports;
+};
+
+private _isRtbPending = (missionNamespace getVariable ["AIRDEF_pendingOrder", ""]) == "RTB";
+
+{
+    _x params ["_aptObj", "_aptPos", "_aptName", "_aptType"];
+    private _aptPos2D = [_aptPos select 0, _aptPos select 1, 0];
+
+    if (_isRtbPending) then {
+        // Highlight airports during RTB selection mode
+        private _pulse = 0.65 + 0.35 * sin (time * 8);
+        private _highlightColor = [0.2, 1, 0.95, _pulse];
+
+        // Pulsing selection rings around airport
+        _map drawEllipse [_aptPos2D, 1200, 1200, 0, _highlightColor, ""];
+        _map drawEllipse [_aptPos2D, 1600, 1600, 0, [0.2, 1, 0.95, _pulse * 0.4], ""];
+
+        _map drawIcon [
+            "\A3\ui_f\data\map\mapcontrol\Airport_ca.paa",
+            _highlightColor,
+            _aptPos2D,
+            28, 28, 0,
+            format ["[ВПП: КЛИК ДЛЯ ВЫБОРА] %1", _aptName],
+            0,
+            0.030,
+            "EtelkaMonospaceProBold",
+            "right"
+        ];
+    } else {
+        // Normal clean tactical airfield icon
+        _map drawIcon [
+            "\A3\ui_f\data\map\mapcontrol\Airport_ca.paa",
+            [0.2, 0.85, 0.7, 0.75],
+            _aptPos2D,
+            22, 22, 0,
+            format ["[ВПП] %1", _aptName],
+            0,
+            0.024,
+            "EtelkaMonospacePro",
+            "right"
+        ];
+    };
+} forEach (missionNamespace getVariable ["AIRDEF_discoveredAirports", []]);
+
+// Top pulsing banner during RTB selection
+if (_isRtbPending) then {
+    private _screenTop = _map ctrlMapScreenToWorld [0.5, 0.08];
+    if (count _screenTop > 0) then {
+        private _bannerPulse = 0.8 + 0.2 * sin (time * 6);
+        _map drawIcon [
+            "#(argb,8,8,3)color(0,0,0,0)",
+            [0.2, 1, 0.95, _bannerPulse],
+            _screenTop,
+            0, 0, 0,
+            "[РЕЖИМ RTB: КЛИКНИТЕ АЭРОДРОМ ИЛИ БАЗУ ДЛЯ ВОЗВРАТА]",
+            0,
+            0.034,
+            "EtelkaMonospaceProBold",
+            "center"
+        ];
+    };
+};
+
+
 // ================= 2. HOSTILE RADARS (RED SAM THREAT RINGS) =================
 {
     _x params ["_rObj", "_rPos", "_rRange", "_rName"];

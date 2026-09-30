@@ -12,7 +12,8 @@
 params [
     ["_aircraft", objNull],
     ["_orderType", "INTERCEPT"],
-    ["_targetOrPos", objNull]
+    ["_targetOrPos", objNull],
+    ["_extraParam", ""]
 ];
 
 if (isNull _aircraft) exitWith {};
@@ -26,7 +27,7 @@ if !(player in _crewPlayers) exitWith {
     if (isMultiplayer) then {
         private _pilot = driver _aircraft;
         private _targetUnit = if (!isNull _pilot && { isPlayer _pilot }) then { _pilot } else { _crewPlayers select 0 };
-        [_aircraft, _orderType, _targetOrPos] remoteExec ["AIRDEF_fnc_commandPilot", _targetUnit];
+        [_aircraft, _orderType, _targetOrPos, _extraParam] remoteExec ["AIRDEF_fnc_commandPilot", _targetUnit];
     };
 };
 
@@ -159,33 +160,45 @@ switch (toUpper _orderType) do {
     // 3. RTB (RETURN TO BASE)
     // -------------------------------------------------------------
     case "RTB": {
-        // Find nearest friendly airfield or starting position
-        private _airports = allAirports;
-        private _rtbPos = getPosATL _aircraft;
-        if (count _airports > 0) then {
-            private _nearest = [_airports, _aircraft] call BIS_fnc_nearestPosition;
-            _rtbPos = getAirportPosition _nearest;
+        private _rtbPos = if (_targetOrPos isEqualType []) then {
+            _targetOrPos
+        } else {
+            if (!isNull _targetOrPos) then { getPosATL _targetOrPos } else {
+                private _airports = allAirports;
+                if (count _airports > 0) then {
+                    getAirportPosition (_airports select 0)
+                } else {
+                    getPosATL _aircraft
+                }
+            }
+        };
+
+        private _baseName = if (_extraParam isEqualType "" && { _extraParam != "" }) then {
+            _extraParam
+        } else {
+            "НАЗНАЧЕННЫЙ АЭРОДРОМ"
         };
 
         private _dist = round ((getPosASL _aircraft) distance _rtbPos);
         private _bearing = round ((getPosASL _aircraft) getDir _rtbPos);
 
-        systemChat format ["[GCI/ПВО] ПРИКАЗ: ВОЗВРАТ НА БАЗУ (RTB). Курс %1°, дистанция %2 км.", _bearing, round (_dist / 1000)];
+        systemChat format ["[GCI/ПВО] ПРИКАЗ: ВОЗВРАТ НА БАЗУ (RTB). База: '%1'. Курс %2°, дистанция %3 км.", _baseName, _bearing, round (_dist / 1000)];
 
         hintSilent parseText format [
-            "<t color='#00FF44' font='PuristaBold' size='1.2'>[КОМАНДА GCI: НА БАЗУ (RTB)]</t><br/>" +
+            "<t color='#00FFFF' font='PuristaBold' size='1.2'>[КОМАНДА GCI: НА БАЗУ (RTB)]</t><br/>" +
             "<t color='#555555'>--------------------------------</t><br/>" +
-            "<t color='#FFFFFF' font='PuristaMedium'>КУРС НА АЭРОДРОМ: </t><t color='#00FF44' font='PuristaBold' size='1.3'> %1°</t><br/>" +
-            "<t color='#FFFFFF' font='PuristaMedium'>ДИСТАНЦИЯ: </t><t color='#00FF44' font='PuristaBold'>%2 км</t><br/>" +
+            "<t color='#FFFFFF' font='PuristaMedium'>БАЗА ПОСАДКИ: </t><t color='#00FFFF' font='PuristaBold'>%1</t><br/>" +
+            "<t color='#FFFFFF' font='PuristaMedium'>КУРС НА ВПП: </t><t color='#00FF44' font='PuristaBold' size='1.3'> %2°</t><br/>" +
+            "<t color='#FFFFFF' font='PuristaMedium'>ДИСТАНЦИЯ: </t><t color='#00FF44' font='PuristaBold'>%3 км</t><br/>" +
             "<t color='#555555'>--------------------------------</t><br/>" +
-            "<t color='#00FF44' font='PuristaBold'>ПРИКАЗ: ВОЗВРАЩЕНИЕ НА АЭРОДРОМ</t>",
-            _bearing, round (_dist / 1000)
+            "<t color='#00FF44' font='PuristaBold'>ПРИКАЗ: ЗАХОД НА ПОСАДКУ</t>",
+            _baseName, _bearing, round (_dist / 1000)
         ];
 
         private _m = createMarkerLocal ["AIRDEF_PILOT_GCI_NAV", _rtbPos];
         _m setMarkerTypeLocal "mil_end";
-        _m setMarkerColorLocal "ColorGreen";
-        _m setMarkerTextLocal format ["[GCI АЭРОДРОМ] БАЗА (RTB) | %1° / %2 КМ", _bearing, round (_dist / 1000)];
+        _m setMarkerColorLocal "ColorCyan";
+        _m setMarkerTextLocal format ["[GCI RTB] %1 | КУРС %2° | ДИСТ %3 КМ", _baseName, _bearing, round (_dist / 1000)];
         _m setMarkerSizeLocal [1.2, 1.2];
 
         [_rtbPos, _aircraft] spawn {

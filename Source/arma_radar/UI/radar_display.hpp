@@ -301,6 +301,7 @@ class AIRDEF_Radar_Display
             w = "0.204 * safezoneW";
             h = "0.034 * safezoneH";
             text = "[4] ПРИКАЗ: НА БАЗУ (RTB)";
+            tooltip = "Отправить борт на базу. После нажатия кликните на карте нужный аэродром или базу союзников.";
             action = "['ACTION', 'RTB'] call AIRDEF_fnc_uiInteractions;";
         };
 

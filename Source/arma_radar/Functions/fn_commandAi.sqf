@@ -10,7 +10,9 @@
 params [
     ["_aircraft", objNull],
     ["_targetOrPos", objNull],
-    ["_orderType", "INTERCEPT"]
+    ["_orderType", "INTERCEPT"],
+    ["_airportId", -1],
+    ["_baseName", ""]
 ];
 
 if (isNull _aircraft || !alive _aircraft) exitWith {};
@@ -21,7 +23,7 @@ if (isNull _grp) exitWith {};
 // CRITICAL MULTIPLAYER FIX (fixes Drongo's dedicated server bug):
 // Waypoints must be modified on the machine that owns the group!
 if (!local _grp) exitWith {
-    [_aircraft, _targetOrPos, _orderType] remoteExecCall ["AIRDEF_fnc_commandAi", groupOwner _grp];
+    [_aircraft, _targetOrPos, _orderType, _airportId, _baseName] remoteExecCall ["AIRDEF_fnc_commandAi", groupOwner _grp];
 };
 
 private _callsign = groupId _grp;
@@ -98,27 +100,44 @@ switch (_orderType) do {
         _grp setBehaviour "SAFE";
         _grp setSpeedMode "NORMAL";
 
-        // Find nearest friendly airport or spawn position
-        private _airports = allAirports;
-        private _landingPos = [worldSize/2, worldSize/2, 0];
-        
-        if (count _airports > 0) then {
-            // Find closest airport
-            private _closest = _airports select 0;
-            private _minDist = 999999;
-            {
-                private _aPos = airportSide _x; // or airport position
-                private _dist = (getPosATL _aircraft) distance _landingPos;
-            } forEach _airports;
+        private _rtbPos = if (_targetOrPos isEqualType []) then {
+            _targetOrPos
+        } else {
+            if (!isNull _targetOrPos) then { getPosATL _targetOrPos } else {
+                if (_airportId isEqualType 0 && { _airportId >= 0 }) then {
+                    getAirportPosition _airportId
+                } else {
+                    getPosATL _aircraft
+                }
+            }
         };
 
-        private _wp = _grp addWaypoint [getPosATL _aircraft, 0];
+        // Create flight waypoint to designated base
+        private _wp = _grp addWaypoint [_rtbPos, 0];
         _wp setWaypointType "MOVE";
-        
-        // Command land
-        _aircraft land "LAND";
+        _wp setWaypointSpeed "NORMAL";
+        _wp setWaypointBehaviour "SAFE";
+        _wp setWaypointCombatMode "GREEN";
+        _grp setCurrentWaypoint _wp;
 
-        private _confMsg3 = format ["[ИИ %1] Приказ принял! Возвращаюсь на базу (RTB), заход на посадку.", _callsign];
+        // If it's a fixed-wing plane and valid airport ID/object, issue landAt command
+        if (_aircraft isKindOf "Plane") then {
+            if (_airportId isEqualType 0 && { _airportId >= 0 }) then {
+                _aircraft landAt _airportId;
+            } else {
+                if (_airportId isEqualType objNull && { !isNull _airportId }) then {
+                    _aircraft landAt _airportId;
+                } else {
+                    _aircraft land "LAND";
+                };
+            };
+        } else {
+            // Helicopter / VTOL
+            _aircraft land "LAND";
+        };
+
+        private _nameStr = if (_baseName != "") then { _baseName } else { "базу возврата" };
+        private _confMsg3 = format ["[ИИ %1] Приказ принял! Возвращаюсь на %2 (RTB), заход на посадку.", _callsign, _nameStr];
         systemChat _confMsg3;
         if (isMultiplayer) then { [_confMsg3] remoteExec ["systemChat"]; };
     };

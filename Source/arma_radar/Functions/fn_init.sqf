@@ -35,6 +35,8 @@ AIRDEF_radarClasses = [
 AIRDEF_selectedUnit = objNull;
 AIRDEF_targetUnit   = objNull;
 AIRDEF_trackCache   = [];
+AIRDEF_pendingOrder = "";
+AIRDEF_discoveredAirports = [];
 
 // Register CBA keybind if CBA is loaded
 if (isClass (configFile >> "CfgPatches" >> "cba_main")) then {

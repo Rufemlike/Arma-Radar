@@ -21,6 +21,123 @@ switch (_actionType) do {
         private _clickScreenY = if (_param isEqualType [] && { count _param > 2 }) then { _param select 2 } else { -1 };
         
         private _map = _display displayCtrl 78501;
+
+        // --- CHECK IF OPERATOR IS IN PENDING RTB AIRPORT SELECTION MODE ---
+        if ((missionNamespace getVariable ["AIRDEF_pendingOrder", ""]) == "RTB") exitWith {
+            if (isNull AIRDEF_selectedUnit || !alive AIRDEF_selectedUnit) exitWith {
+                systemChat "[AIRDEF] Ошибка: союзный борт не выбран или уничтожен.";
+                AIRDEF_pendingOrder = "";
+            };
+
+            // 1. Check if clicked near an airfield from discovered airports
+            private _chosenAirport = [];
+            private _minAptDist = 999999;
+            {
+                _x params ["_aptObj", "_aptPos", "_aptName"];
+                private _dist = 999999;
+                if (_clickScreenX >= 0 && !isNull _map) then {
+                    private _sPos = _map ctrlMapWorldToScreen _aptPos;
+                    if (count _sPos > 0) then {
+                        private _dx = (_sPos select 0) - _clickScreenX;
+                        private _dy = (_sPos select 1) - _clickScreenY;
+                        _dist = sqrt (_dx * _dx + _dy * _dy);
+                    };
+                } else {
+                    _dist = _worldPos distance2D _aptPos;
+                };
+                if (_dist < _minAptDist) then {
+                    _minAptDist = _dist;
+                    _chosenAirport = _x;
+                };
+            } forEach (missionNamespace getVariable ["AIRDEF_discoveredAirports", []]);
+
+            // 2. Check if clicked near a friendly radar station
+            private _chosenRadar = [];
+            private _minRadarDist = 999999;
+            {
+                _x params ["_rObj", "_rPos", "_rRange", "_rName"];
+                private _dist = 999999;
+                if (_clickScreenX >= 0 && !isNull _map) then {
+                    private _sPos = _map ctrlMapWorldToScreen _rPos;
+                    if (count _sPos > 0) then {
+                        private _dx = (_sPos select 0) - _clickScreenX;
+                        private _dy = (_sPos select 1) - _clickScreenY;
+                        _dist = sqrt (_dx * _dx + _dy * _dy);
+                    };
+                } else {
+                    _dist = _worldPos distance2D _rPos;
+                };
+                if (_dist < _minRadarDist) then {
+                    _minRadarDist = _dist;
+                    _chosenRadar = _x;
+                };
+            } forEach (missionNamespace getVariable ["AIRDEF_activeRadars", []]);
+
+            private _selectedPos = _worldPos;
+            private _selectedName = "";
+            private _airportId = -1;
+
+            private _isAptHit   = if (_clickScreenX >= 0) then { _minAptDist <= 0.050 } else { _minAptDist <= 3000 };
+            private _isRadarHit = if (_clickScreenX >= 0) then { _minRadarDist <= 0.045 } else { _minRadarDist <= 1500 };
+
+            if (_isAptHit && count _chosenAirport > 0) then {
+                _chosenAirport params ["_aptObj", "_aptPos", "_aptName"];
+                _selectedPos  = _aptPos;
+                _selectedName = _aptName;
+                _airportId    = _aptObj;
+            } else {
+                if (_isRadarHit && count _chosenRadar > 0) then {
+                    _chosenRadar params ["_rObj", "_rPos", "_rRange", "_rName"];
+                    _selectedPos  = _rPos;
+                    _selectedName = format ["База РЛС '%1'", _rName];
+                } else {
+                    // Arbitrary point - resolve nearest location
+                    private _locs = nearestLocations [_worldPos, ["Airport", "NameCityCapital", "NameCity", "NameVillage", "NameLocal"], 3000];
+                    if (count _locs > 0) then {
+                        _selectedName = format ["Район %1", text (_locs select 0)];
+                    } else {
+                        _selectedName = format ["Координаты [%1, %2]", round (_worldPos select 0), round (_worldPos select 1)];
+                    };
+                };
+            };
+
+            private _plane = AIRDEF_selectedUnit;
+            private _planeName = _plane getVariable ["AIRDEF_callsign", ""];
+            if (_planeName == "") then { _planeName = getText (configFile >> "CfgVehicles" >> typeOf _plane >> "displayName"); };
+
+            // Dispatch command to human pilot
+            private _crewPlayers = (crew _plane) select { isPlayer _x };
+            if (count _crewPlayers > 0) then {
+                [_plane, "RTB", _selectedPos, _selectedName] call AIRDEF_fnc_commandPilot;
+                systemChat format ["[AIRDEF] Приказ RTB (Аэродром: %1) передан пилоту-игроку (%2)", _selectedName, name (_crewPlayers select 0)];
+            };
+
+            // Dispatch command to AI pilot
+            if (!isPlayer (driver _plane)) then {
+                [_plane, _selectedPos, "RTB", _airportId, _selectedName] call AIRDEF_fnc_commandAi;
+            };
+
+            playSoundUI ["\A3\ui_f\data\sound\RscButton\soundClick.wss", 0.7, 1.2];
+            AIRDEF_pendingOrder = "";
+
+            private _ctrlInfo = _display displayCtrl 78510;
+            if (!isNull _ctrlInfo) then {
+                private _distKm = round (((getPosASL _plane) distance _selectedPos) / 1000);
+                private _dir = round ((getPosASL _plane) getDir _selectedPos);
+                private _html = format [
+                    "<t color='#00FF44' font='PuristaBold' size='1.1'>[ПРИКАЗ RTB ОТДАН]</t><br/>" +
+                    "<t color='#FFFFFF' font='PuristaBold'>БОРТ: </t><t color='#00FF44'>%1</t><br/>" +
+                    "<t color='#555555'>--------------------------------</t><br/>" +
+                    "<t color='#FFFFFF'>НАЗНАЧЕННЫЙ АЭРОДРОМ: </t><t color='#00FFFF'>%2</t><br/>" +
+                    "<t color='#FFFFFF'>КУРС НА ВПП: </t><t color='#00FF44'>%3°</t><br/>" +
+                    "<t color='#FFFFFF'>ДИСТАНЦИЯ: </t><t color='#00FF44'>%4 км</t><br/>" +
+                    "<t color='#555555'>--------------------------------</t><br/>" +
+                    "<t color='#00FF44'>Борт ложится на курс возврата к выбранной базе.</t>",
+                    _planeName, _selectedName, _dir, _distKm
+                ];
+                _ctrlInfo ctrlSetStructuredText parseText _html;
+            };
+        };
         private _closestTrack = [];
         private _minDist = 999999;
         
@@ -269,21 +386,46 @@ switch (_actionType) do {
                 };
             };
             case "RTB": {
-                if (isNull AIRDEF_selectedUnit) exitWith {
-                    systemChat "[AIRDEF] Выберите союзный борт для приказа возврата на базу.";
+                if (isNull AIRDEF_selectedUnit || !alive AIRDEF_selectedUnit) exitWith {
+                    systemChat "[AIRDEF] Сначала выберите союзный борт для приказа возврата на базу (RTB).";
                 };
-                private _crewPlayers = (crew AIRDEF_selectedUnit) select { isPlayer _x };
-                if (count _crewPlayers > 0) then {
-                    [AIRDEF_selectedUnit, "RTB", objNull] call AIRDEF_fnc_commandPilot;
-                    systemChat format ["[AIRDEF] Приказ ВОЗВРАТА НА БАЗУ (RTB) передан пилоту-игроку (%1)", name (_crewPlayers select 0)];
+
+                // Toggle cancel if already in RTB selection mode
+                if ((missionNamespace getVariable ["AIRDEF_pendingOrder", ""]) == "RTB") exitWith {
+                    AIRDEF_pendingOrder = "";
+                    systemChat "[AIRDEF] Режим выбора базы RTB отменен.";
+                    ["MAP_CLICK_SELECT", [getPosASL AIRDEF_selectedUnit]] call AIRDEF_fnc_uiInteractions;
                 };
-                if (!isPlayer (driver AIRDEF_selectedUnit)) then {
-                    [AIRDEF_selectedUnit, objNull, "RTB"] call AIRDEF_fnc_commandAi;
+
+                AIRDEF_pendingOrder = "RTB";
+                playSoundUI ["\A3\ui_f\data\sound\RscButton\soundClick.wss", 0.7, 1];
+
+                private _planeName = AIRDEF_selectedUnit getVariable ["AIRDEF_callsign", ""];
+                if (_planeName == "") then { _planeName = getText (configFile >> "CfgVehicles" >> typeOf AIRDEF_selectedUnit >> "displayName"); };
+
+                systemChat format ["[AIRDEF] Режим RTB активирован для '%1'. Кликните на радаре нужный аэродром или базу.", _planeName];
+
+                private _ctrlInfo = _display displayCtrl 78510;
+                if (!isNull _ctrlInfo) then {
+                    private _html = format [
+                        "<t color='#00FFFF' font='PuristaBold' size='1.1'>[НАЗНАЧЕНИЕ БАЗЫ RTB]</t><br/>" +
+                        "<t color='#FFFFFF' font='PuristaBold'>БОРТ: </t><t color='#00FF44'>%1</t><br/>" +
+                        "<t color='#555555'>--------------------------------</t><br/>" +
+                        "<t color='#FFFF00' font='PuristaBold'>КЛИКНИТЕ НА КАРТЕ РАДАРА:</t><br/>" +
+                        "<t color='#00FFFF'>[ВПП] Аэродром посадки</t><br/>" +
+                        "<t color='#00FF44'>[*] Дружественную базу РЛС</t><br/>" +
+                        "<t color='#FFFFFF'>Или любую точку на карте</t><br/>" +
+                        "<t color='#555555'>--------------------------------</t><br/>" +
+                        "<t color='#888888'>Для отмены нажмите [СБРОС ВЫБОРА].</t>",
+                        _planeName
+                    ];
+                    _ctrlInfo ctrlSetStructuredText parseText _html;
                 };
             };
             case "CLEAR": {
                 AIRDEF_selectedUnit = objNull;
                 AIRDEF_targetUnit   = objNull;
+                AIRDEF_pendingOrder = "";
                 private _ctrlInfo = _display displayCtrl 78510;
                 if (!isNull _ctrlInfo) then {
                     _ctrlInfo ctrlSetStructuredText parseText "<t color='#00FF44' font='PuristaMedium'>ВЫБОР СБРОШЕН.<br/><br/>Кликните левой кнопкой мыши по отметке на радаре для захвата данных.</t>";
