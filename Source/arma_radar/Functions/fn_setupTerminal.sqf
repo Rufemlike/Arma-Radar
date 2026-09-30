@@ -9,6 +9,7 @@
 params [["_obj", objNull]];
 
 if (isNull _obj) exitWith {};
+if (_obj isKindOf "CAManBase") exitWith {}; // Humans can never be terminals
 if (!hasInterface) exitWith {}; // Only clients with UI need addAction
 if (_obj getVariable ["AIRDEF_terminalActionAdded", false]) exitWith {};
 

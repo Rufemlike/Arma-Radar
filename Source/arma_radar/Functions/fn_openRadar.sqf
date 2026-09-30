@@ -32,7 +32,7 @@ if (isNil "AIRDEF_selectedRadar" || { isNull AIRDEF_selectedRadar } || { !(AIRDE
     if (count _radars > 0) then {
         AIRDEF_selectedRadar = (_radars select 0) select 0;
     } else {
-        AIRDEF_selectedRadar = player;
+        AIRDEF_selectedRadar = objNull;
     };
 };
 

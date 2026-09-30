@@ -25,10 +25,25 @@ if (_userSide in [sideLogic, civilian, sideUnknown]) then {
 // Ensure active selected radar is valid
 private _radarObjList = AIRDEF_activeRadars apply { _x select 0 };
 if (isNil "AIRDEF_selectedRadar" || { isNull AIRDEF_selectedRadar } || { !(AIRDEF_selectedRadar in _radarObjList) }) then {
-    if (count AIRDEF_activeRadars > 0) then {
-        AIRDEF_selectedRadar = (AIRDEF_activeRadars select 0) select 0;
-    } else {
-        AIRDEF_selectedRadar = player;
+    AIRDEF_selectedRadar = if (count AIRDEF_activeRadars > 0) then { (AIRDEF_activeRadars select 0) select 0 } else { objNull };
+};
+
+// Warning banner if all radars destroyed or none active
+if (count AIRDEF_activeRadars == 0) then {
+    private _screenCenter = _map ctrlMapScreenToWorld [0.5, 0.45];
+    if (count _screenCenter > 0) then {
+        private _pulse = 0.75 + 0.25 * sin (time * 6);
+        _map drawIcon [
+            "#(argb,8,8,3)color(0,0,0,0)",
+            [1, 0.2, 0.1, _pulse],
+            _screenCenter,
+            0, 0, 0,
+            "[СВЯЗЬ С РЛС ПОТЕРЯНА — СТАНЦИЯ УНИЧТОЖЕНА ИЛИ ОБЕСТОЧЕНА]",
+            0,
+            0.038,
+            "EtelkaMonospaceProBold",
+            "center"
+        ];
     };
 };
 

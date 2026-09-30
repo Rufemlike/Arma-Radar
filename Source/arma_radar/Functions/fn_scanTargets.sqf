@@ -50,7 +50,7 @@ private _radarCandidates = [];
 if (_onlyCustomRadars) then {
     // Mode A: STRICT 3DEN / SCRIPT ONLY. Only use objects explicitly marked as radar
     {
-        if (alive _x) then {
+        if (alive _x && { damage _x < 0.85 }) then {
             if ((_x getVariable ["AIRDEF_isRadar", false]) || { (_x getVariable ["AIRDEF_radarRange", -1]) > 0 }) then {
                 _radarCandidates pushBackUnique _x;
             };
@@ -62,7 +62,7 @@ if (_onlyCustomRadars) then {
 
     // 1. Explicit 3DEN custom radars (always included)
     {
-        if (alive _x && { (_x getVariable ["AIRDEF_isRadar", false]) || { (_x getVariable ["AIRDEF_radarRange", -1]) > 0 } }) then {
+        if (alive _x && { damage _x < 0.85 } && { (_x getVariable ["AIRDEF_isRadar", false]) || { (_x getVariable ["AIRDEF_radarRange", -1]) > 0 } }) then {
             _radarCandidates pushBackUnique _x;
         };
     } forEach (allMissionObjects "All");
@@ -73,7 +73,7 @@ if (_onlyCustomRadars) then {
         private _wCenter = [_wSize / 2, _wSize / 2, 0];
         private _mapRadars = nearestObjects [_wCenter, AIRDEF_radarClasses, _wSize max 40000];
         {
-            if (alive _x) then { _radarCandidates pushBackUnique _x; };
+            if (alive _x && { damage _x < 0.85 }) then { _radarCandidates pushBackUnique _x; };
         } forEach _mapRadars;
     };
 
@@ -81,7 +81,7 @@ if (_onlyCustomRadars) then {
     if (_autoScanVehicleRadars) then {
         {
             private _veh = _x;
-            if (alive _veh && { !(_veh in _radarCandidates) }) then {
+            if (alive _veh && { damage _veh < 0.85 } && { !(_veh in _radarCandidates) }) then {
                 private _type = typeOf _veh;
                 private _typeLower = toLower _type;
                 private _dispName = toLower (getText (configFile >> "CfgVehicles" >> _type >> "displayName"));
@@ -132,7 +132,7 @@ if (_onlyCustomRadars) then {
 // Categorize radars (Friendly vs Hostile) and apply individual ranges
 {
     private _rObj = _x;
-    if (alive _rObj) then {
+    if (alive _rObj && { damage _rObj < 0.85 }) then {
         private _rPos = getPosASL _rObj;
 
         // 1. Determine Side (Friend or Foe)
@@ -220,15 +220,14 @@ if (_onlyCustomRadars) then {
     };
 } forEach _radarCandidates;
 
-// Fallback: if no radar object on map, create field station at player
-if (count _foundFriendly == 0) then {
-    private _basePos = getPosASL player;
-    private _fallbackRange = round (15000 * _rangeMult);
-    _foundFriendly pushBack [player, _basePos, _fallbackRange, "ПОЛЕВОЙ ПОСТ РЛС", 0];
-};
-
 AIRDEF_activeRadars  = _foundFriendly;
 AIRDEF_hostileRadars = _foundHostile;
+
+// If the currently selected radar was destroyed, clear selection or switch to remaining active radar
+private _friendlyObjs = _foundFriendly apply { _x select 0 };
+if (!isNil "AIRDEF_selectedRadar" && { !isNull AIRDEF_selectedRadar } && { !(AIRDEF_selectedRadar in _friendlyObjs) }) then {
+    AIRDEF_selectedRadar = if (count _friendlyObjs > 0) then { _friendlyObjs select 0 } else { objNull };
+};
 
 
 // ================= 1.3. UPDATE 2D MAP & ZEUS COVERAGE MARKERS =================
@@ -372,8 +371,8 @@ private _untrackedAir = _allAir select { !(_x in _trackedObjects) };
         private _tgtPos = getPosASL _tgt;
         private _altATL = (getPosATL _tgt) select 2;
         
-        // Aircraft above tree line (> 15m) can be detected by radar
-        if (_altATL > 15) then {
+        // Aircraft above tree line (> 15m) can be detected ONLY if at least one friendly radar is active
+        if (_altATL > 15 && { count AIRDEF_activeRadars > 0 }) then {
             private _detected = false;
             private _rcs = getNumber (configFile >> "CfgVehicles" >> (typeOf _tgt) >> "radarTargetSize");
             if (_rcs <= 0) then { _rcs = 1.0; };
@@ -437,7 +436,7 @@ private _hadNewMissile = false;
         private _mPos = getPosASL _missile;
         private _alt = _mPos select 2;
         
-        if (_speedMs > 50 && _alt > 10) then {
+        if (_speedMs > 50 && _alt > 10 && { count AIRDEF_activeRadars > 0 }) then {
             private _inRadarCoverage = false;
             {
                 _x params ["_rObj", "_rPos", "_rRange"];

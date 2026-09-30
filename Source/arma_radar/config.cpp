@@ -174,25 +174,17 @@ class Cfg3DEN
     };
 };
 
-class CfgVehicles
+// Whitelist remote execution functions for multiplayer stability
+class CfgRemoteExec
 {
-    class Man;
-    class CAManBase: Man
+    class Functions
     {
-        class UserActions
-        {
-            class OpenAirDefenderRadar
-            {
-                displayName = "<t color='#00FF44'>[РАДАР ПВО / УВД] Открыть терминал</t>";
-                displayNameDefault = "<t color='#00FF44'>[РАДАР] Открыть</t>";
-                position = "";
-                radius = 5;
-                onlyForPlayer = 1;
-                condition = "alive player && (player isKindOf 'CAManBase') && (missionNamespace getVariable ['AIRDEF_enabled', true]) && !(missionNamespace getVariable ['AIRDEF_requireTerminal', false])";
-                statement = "[] spawn AIRDEF_fnc_openRadar;";
-                priority = 0.5;
-            };
-        };
+        mode = 2;
+        jip = 1;
+        class AIRDEF_fnc_commandPilot   { allowedTargets = 0; jip = 0; };
+        class AIRDEF_fnc_commandAi      { allowedTargets = 0; jip = 0; };
+        class AIRDEF_fnc_setupTerminal  { allowedTargets = 0; jip = 1; };
+        class systemChat                { allowedTargets = 0; jip = 0; };
     };
 };
 

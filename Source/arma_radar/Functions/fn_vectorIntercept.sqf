@@ -2,9 +2,9 @@
     Author: Arma Radar Team
     File: fn_vectorIntercept.sqf
     Description:
-        Computes GCI intercept vector solution and transmits tactical vectoring
+        Computes GCI intercept vector solution and safely transmits tactical vectoring
         to human pilots or displays tactical data.
-        Safe against singleplayer/multiplayer network DLL crashes.
+        Safe against singleplayer/multiplayer network DLL crashes (uses primitive payloads).
 */
 
 params [
@@ -44,7 +44,6 @@ private _etaMin = floor (_etaSec / 60);
 private _etaSecRem = _etaSec % 60;
 private _etaStr = format ["%1:%2", _etaMin, if (_etaSecRem < 10) then {"0" + str _etaSecRem} else {str _etaSecRem}];
 
-private _pilot = driver _friendly;
 private _callsign = _friendly getVariable ["AIRDEF_callsign", ""];
 if (_callsign == "") then {
     private _grp = group _friendly;
@@ -56,15 +55,31 @@ private _tgtName = _target getVariable ["AIRDEF_callsign", ""];
 if (_tgtName == "") then { _tgtName = getText (configFile >> "CfgVehicles" >> typeOf _target >> "displayName"); };
 if (_tgtName == "") then { _tgtName = "ВОЗДУШНАЯ ЦЕЛЬ"; };
 
-// Radio message string
+// Radio message string in operator console
 private _msg = format [
     "[GCI/ПВО] %1, ЦЕЛЬ: %2 | КУРС %3° | ДАЛЬНОСТЬ %4 КМ | ВЫСОТА %5 М | ETA %6 | ПЕРЕХВАТ РАЗРЕШАЮ!",
     _callsign, _tgtName, _bearing, round (_dist / 1000), _tAlt, _etaStr
 ];
 
-// Display in operator console
 systemChat _msg;
 playSoundUI ["\A3\ui_f\data\sound\RscButton\soundClick.wss", 0.5, 1];
 
-// Transmit tactical GCI command, HUD telemetry card, and GPS tracking marker to the pilot
-[_friendly, "INTERCEPT", _target] call AIRDEF_fnc_commandPilot;
+// Safely transmit tactical GCI command to pilot using primitive types
+private _payload = [
+    _friendly,
+    "INTERCEPT",
+    _tPos,
+    _tgtName,
+    _bearing,
+    round (_dist / 1000),
+    _tAlt,
+    _tSpeed,
+    _etaStr,
+    netId _target
+];
+
+if (isMultiplayer) then {
+    _payload remoteExec ["AIRDEF_fnc_commandPilot", 0];
+} else {
+    _payload call AIRDEF_fnc_commandPilot;
+};

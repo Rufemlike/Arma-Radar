@@ -105,10 +105,17 @@ switch (_actionType) do {
             private _planeName = _plane getVariable ["AIRDEF_callsign", ""];
             if (_planeName == "") then { _planeName = getText (configFile >> "CfgVehicles" >> typeOf _plane >> "displayName"); };
 
-            // Dispatch command to human pilot
+            // Dispatch command to human pilot (safe broadcast with primitive types)
             private _crewPlayers = (crew _plane) select { isPlayer _x };
             if (count _crewPlayers > 0) then {
-                [_plane, "RTB", _selectedPos, _selectedName] call AIRDEF_fnc_commandPilot;
+                private _distKm = round (((getPosASL _plane) distance _selectedPos) / 1000);
+                private _bearing = round ((getPosASL _plane) getDir _selectedPos);
+                private _payload = [_plane, "RTB", _selectedPos, _selectedName, _bearing, _distKm, 0, 0, "", ""];
+                if (isMultiplayer) then {
+                    _payload remoteExec ["AIRDEF_fnc_commandPilot", 0];
+                } else {
+                    _payload call AIRDEF_fnc_commandPilot;
+                };
                 systemChat format ["[AIRDEF] Приказ RTB (Аэродром: %1) передан пилоту-игроку (%2)", _selectedName, name (_crewPlayers select 0)];
             };
 
@@ -279,7 +286,15 @@ switch (_actionType) do {
         if (!isNull AIRDEF_selectedUnit && { alive AIRDEF_selectedUnit }) then {
             private _crewPlayers = (crew AIRDEF_selectedUnit) select { isPlayer _x };
             if (count _crewPlayers > 0) then {
-                [AIRDEF_selectedUnit, "CAP", _worldPos] call AIRDEF_fnc_commandPilot;
+                private _fPos = getPosASL AIRDEF_selectedUnit;
+                private _distKm = round ((_fPos distance _worldPos) / 1000);
+                private _bearing = round (_fPos getDir _worldPos);
+                private _payload = [AIRDEF_selectedUnit, "CAP", _worldPos, "ТОЧКА МАРШРУТА", _bearing, _distKm, 2500, 0, "", ""];
+                if (isMultiplayer) then {
+                    _payload remoteExec ["AIRDEF_fnc_commandPilot", 0];
+                } else {
+                    _payload call AIRDEF_fnc_commandPilot;
+                };
                 systemChat format ["[AIRDEF] Точка маршрута передана пилоту-игроку (%1)", name (_crewPlayers select 0)];
             };
             if (!isPlayer (driver AIRDEF_selectedUnit)) then {
@@ -364,7 +379,28 @@ switch (_actionType) do {
                 };
                 private _crewPlayers = (crew AIRDEF_selectedUnit) select { isPlayer _x };
                 if (count _crewPlayers > 0) then {
-                    [AIRDEF_selectedUnit, "INTERCEPT", AIRDEF_targetUnit] call AIRDEF_fnc_commandPilot;
+                    private _fPos = getPosASL AIRDEF_selectedUnit;
+                    private _tPos = getPosASL AIRDEF_targetUnit;
+                    private _dist = round (_fPos distance _tPos);
+                    private _bearing = round (_fPos getDir _tPos);
+                    private _tAlt = round (_tPos select 2);
+                    private _tSpeed = round (speed AIRDEF_targetUnit);
+                    private _tgtName = AIRDEF_targetUnit getVariable ["AIRDEF_callsign", ""];
+                    if (_tgtName == "") then { _tgtName = getText (configFile >> "CfgVehicles" >> typeOf AIRDEF_targetUnit >> "displayName"); };
+                    if (_tgtName == "") then { _tgtName = "ВОЗДУШНАЯ ЦЕЛЬ"; };
+
+                    private _closureSpeedMs = ((round (speed AIRDEF_selectedUnit) max 100) + (_tSpeed max 0)) / 3.6;
+                    private _etaSec = round (_dist / (_closureSpeedMs max 10));
+                    private _etaMin = floor (_etaSec / 60);
+                    private _etaSecRem = _etaSec % 60;
+                    private _etaStr = format ["%1:%2", _etaMin, if (_etaSecRem < 10) then {"0" + str _etaSecRem} else {str _etaSecRem}];
+
+                    private _payload = [AIRDEF_selectedUnit, "INTERCEPT", _tPos, _tgtName, _bearing, round (_dist / 1000), _tAlt, _tSpeed, _etaStr, netId AIRDEF_targetUnit];
+                    if (isMultiplayer) then {
+                        _payload remoteExec ["AIRDEF_fnc_commandPilot", 0];
+                    } else {
+                        _payload call AIRDEF_fnc_commandPilot;
+                    };
                     systemChat format ["[AIRDEF] Приказ на ПЕРЕХВАТ передан пилоту-игроку (%1)", name (_crewPlayers select 0)];
                 };
                 if (!isPlayer (driver AIRDEF_selectedUnit)) then {
@@ -378,7 +414,15 @@ switch (_actionType) do {
                 private _pos = if (!isNull AIRDEF_targetUnit) then { getPosATL AIRDEF_targetUnit } else { screenToWorld [0.5, 0.5] };
                 private _crewPlayers = (crew AIRDEF_selectedUnit) select { isPlayer _x };
                 if (count _crewPlayers > 0) then {
-                    [AIRDEF_selectedUnit, "CAP", _pos] call AIRDEF_fnc_commandPilot;
+                    private _fPos = getPosASL AIRDEF_selectedUnit;
+                    private _distKm = round ((_fPos distance _pos) / 1000);
+                    private _bearing = round (_fPos getDir _pos);
+                    private _payload = [AIRDEF_selectedUnit, "CAP", _pos, "ЗОНА ДЕЖУРСТВА", _bearing, _distKm, 2500, 0, "", ""];
+                    if (isMultiplayer) then {
+                        _payload remoteExec ["AIRDEF_fnc_commandPilot", 0];
+                    } else {
+                        _payload call AIRDEF_fnc_commandPilot;
+                    };
                     systemChat format ["[AIRDEF] Сектор ПАТРУЛИРОВАНИЯ (CAP) передан пилоту-игроку (%1)", name (_crewPlayers select 0)];
                 };
                 if (!isPlayer (driver AIRDEF_selectedUnit)) then {

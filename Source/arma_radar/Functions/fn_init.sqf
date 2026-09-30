@@ -70,10 +70,10 @@ if (isClass (configFile >> "CfgPatches" >> "cba_main")) then {
         try {
             [] call AIRDEF_fnc_scanTargets;
 
-            // Auto-setup terminals for objects marked with AIRDEF_isTerminal
+            // Auto-setup terminals for objects marked with AIRDEF_isTerminal (excluding humans)
             if (hasInterface) then {
                 private _terminals = (allMissionObjects "All") select {
-                    (_x getVariable ["AIRDEF_isTerminal", false]) && { !(_x getVariable ["AIRDEF_terminalActionAdded", false]) }
+                    !(_x isKindOf "CAManBase") && { (_x getVariable ["AIRDEF_isTerminal", false]) } && { !(_x getVariable ["AIRDEF_terminalActionAdded", false]) }
                 };
                 {
                     [_x] call AIRDEF_fnc_setupTerminal;
