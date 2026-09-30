@@ -40,105 +40,123 @@ if (_userSide in [sideLogic, civilian, sideUnknown]) then {
 private _foundFriendly = [];
 private _foundHostile  = [];
 
-// 1.1. Gather all potential radar candidates across vehicles, static weapons, and map structures
-private _allCandidates = (vehicles + (allMissionObjects "StaticWeapon") + (allMissionObjects "Building")) arrayIntersect (vehicles + (allMissionObjects "StaticWeapon") + (allMissionObjects "Building"));
-
-private _wSize = if (isNil "worldSize" || { worldSize <= 0 }) then { 40000 } else { worldSize };
-private _wCenter = [_wSize / 2, _wSize / 2, 0];
-private _mapRadars = nearestObjects [_wCenter, AIRDEF_radarClasses, _wSize max 40000];
-{
-    _allCandidates pushBackUnique _x;
-} forEach _mapRadars;
+private _onlyCustomRadars      = missionNamespace getVariable ["AIRDEF_onlyCustomRadars", false];
+private _autoScanMapRadars     = missionNamespace getVariable ["AIRDEF_autoScanMapRadars", true];
+private _autoScanVehicleRadars = missionNamespace getVariable ["AIRDEF_autoScanVehicleRadars", true];
+private _rangeMult             = (missionNamespace getVariable ["AIRDEF_radarRangeMultiplier", 1.0]) max 0.05 min 2.0;
 
 private _radarCandidates = [];
 
+if (_onlyCustomRadars) then {
+    // Mode A: STRICT 3DEN / SCRIPT ONLY. Only use objects explicitly marked as radar
+    {
+        if (alive _x) then {
+            if ((_x getVariable ["AIRDEF_isRadar", false]) || { (_x getVariable ["AIRDEF_radarRange", -1]) > 0 }) then {
+                _radarCandidates pushBackUnique _x;
+            };
+        };
+    } forEach (allMissionObjects "All");
+} else {
+    // Mode B: COMPREHENSIVE SCAN (3DEN custom + optional map structures + optional vehicle sensors)
+    private _allCandidates = [];
+
+    // 1. Explicit 3DEN custom radars (always included)
+    {
+        if (alive _x && { (_x getVariable ["AIRDEF_isRadar", false]) || { (_x getVariable ["AIRDEF_radarRange", -1]) > 0 } }) then {
+            _radarCandidates pushBackUnique _x;
+        };
+    } forEach (allMissionObjects "All");
+
+    // 2. Map radar structures (if enabled)
+    if (_autoScanMapRadars) then {
+        private _wSize = if (isNil "worldSize" || { worldSize <= 0 }) then { 40000 } else { worldSize };
+        private _wCenter = [_wSize / 2, _wSize / 2, 0];
+        private _mapRadars = nearestObjects [_wCenter, AIRDEF_radarClasses, _wSize max 40000];
+        {
+            if (alive _x) then { _radarCandidates pushBackUnique _x; };
+        } forEach _mapRadars;
+    };
+
+    // 3. Vehicles & static weapons with active radar sensors (if enabled)
+    if (_autoScanVehicleRadars) then {
+        {
+            private _veh = _x;
+            if (alive _veh && { !(_veh in _radarCandidates) }) then {
+                private _type = typeOf _veh;
+                private _typeLower = toLower _type;
+                private _dispName = toLower (getText (configFile >> "CfgVehicles" >> _type >> "displayName"));
+
+                private _cfgRadarRange = getNumber (configFile >> "CfgVehicles" >> _type >> "Components" >> "SensorsManagerComponent" >> "Components" >> "ActiveRadarSensorComponent" >> "AirTarget" >> "maxRange");
+                if (_cfgRadarRange <= 0) then {
+                    _cfgRadarRange = getNumber (configFile >> "CfgVehicles" >> _type >> "Turrets" >> "MainTurret" >> "Components" >> "SensorsManagerComponent" >> "Components" >> "ActiveRadarSensorComponent" >> "AirTarget" >> "maxRange");
+                };
+
+                private _isRadarObj = (_cfgRadarRange > 0);
+
+                if (!_isRadarObj && { _type in AIRDEF_radarClasses }) then { _isRadarObj = true; };
+
+                if (!_isRadarObj) then {
+                    {
+                        if (_typeLower find _x != -1 || _dispName find _x != -1) exitWith { _isRadarObj = true; };
+                    } forEach ["radar", "рлс", "радар", "mpq", "sam", "fansong", "tinshield", "spoonrest", "straightflush", "barlock", "nebo", "kasta", "96l6", "30n6", "64n6", "tps"];
+                };
+
+                if (!_isRadarObj && { _veh isKindOf "AllVehicles" } && { isVehicleRadarOn _veh isEqualTo true }) then {
+                    _isRadarObj = true;
+                };
+
+                if (_isRadarObj) then {
+                    _radarCandidates pushBackUnique _veh;
+                };
+            };
+        } forEach (vehicles + (allMissionObjects "StaticWeapon"));
+    };
+};
+
+// Activate autonomous static weapons and sensors
 {
     private _veh = _x;
-    if (alive _veh) then {
-        private _type = typeOf _veh;
-        private _typeLower = toLower _type;
-        private _dispName = toLower (getText (configFile >> "CfgVehicles" >> _type >> "displayName"));
-        
-        // 1. Check native engine ActiveRadarSensorComponent (proven Drongo's DAO method)
-        private _cfgRadarRange = getNumber (configFile >> "CfgVehicles" >> _type >> "Components" >> "SensorsManagerComponent" >> "Components" >> "ActiveRadarSensorComponent" >> "AirTarget" >> "maxRange");
-        if (_cfgRadarRange <= 0) then {
-            _cfgRadarRange = getNumber (configFile >> "CfgVehicles" >> _type >> "Turrets" >> "MainTurret" >> "Components" >> "SensorsManagerComponent" >> "Components" >> "ActiveRadarSensorComponent" >> "AirTarget" >> "maxRange");
-        };
-        
-        private _isRadarObj = false;
-        
-        if (_cfgRadarRange > 0) then {
-            _isRadarObj = true;
-        };
-        
-        // Explicit 3DEN / script variable or property
-        if ((_veh getVariable ["AIRDEF_isRadar", false]) || { (_veh getVariable ["AIRDEF_radarRange", -1]) > 0 }) then {
-            _isRadarObj = true;
-        };
-        
-        // Exact classname match
-        if (!_isRadarObj && { _type in AIRDEF_radarClasses }) then {
-            _isRadarObj = true;
-        };
-        
-        // Keyword match in classname or display name (AN/MPQ-105, Patriot, SAM, Nebo, etc.)
-        if (!_isRadarObj) then {
-            {
-                if (_typeLower find _x != -1 || _dispName find _x != -1) exitWith { _isRadarObj = true; };
-            } forEach ["radar", "рлс", "радар", "mpq", "sam", "fansong", "tinshield", "spoonrest", "straightflush", "barlock", "nebo", "kasta", "96l6", "30n6", "64n6", "tps"];
-        };
-        
-        // Active radar sensor transmission in engine
-        if (!_isRadarObj && { _veh isKindOf "AllVehicles" } && { isVehicleRadarOn _veh isEqualTo true }) then {
-            _isRadarObj = true;
-        };
-        
-        if (_isRadarObj) then {
-            _radarCandidates pushBackUnique _veh;
-            
-            // If unmanned autonomous static radar (like AN/MPQ-105 / Patriot), create AI crew so sensors power on
-            if (count (crew _veh) == 0 && { unitIsUav _veh || (_veh isKindOf "StaticWeapon") }) then {
-                createVehicleCrew _veh;
-                _veh setAutonomous true;
-            };
-            
-            // Turn on active radar transmission in engine
-            if (_veh isKindOf "AllVehicles") then {
-                if !(isVehicleRadarOn _veh isEqualTo true) then {
-                    _veh setVehicleRadar 1;
-                };
-                _veh setVehicleReceiveRemoteTargets true;
-                _veh setVehicleReportRemoteTargets true;
-            };
-            
-            // Store detected cfg range on vehicle if not already set
-            if ((_veh getVariable ["AIRDEF_radarRange", -1]) <= 0 && _cfgRadarRange > 0) then {
-                _veh setVariable ["AIRDEF_radarRange", _cfgRadarRange max 16000];
-            };
-        };
+    if (count (crew _veh) == 0 && { unitIsUav _veh || (_veh isKindOf "StaticWeapon") }) then {
+        createVehicleCrew _veh;
+        _veh setAutonomous true;
     };
-} forEach _allCandidates;
+    if (_veh isKindOf "AllVehicles") then {
+        if !(isVehicleRadarOn _veh isEqualTo true) then {
+            _veh setVehicleRadar 1;
+        };
+        _veh setVehicleReceiveRemoteTargets true;
+        _veh setVehicleReportRemoteTargets true;
+    };
+} forEach _radarCandidates;
 
-// Categorize radars (Friendly vs Hostile)
+// Categorize radars (Friendly vs Hostile) and apply individual ranges
 {
     private _rObj = _x;
     if (alive _rObj) then {
         private _rPos = getPosASL _rObj;
-        
+
         // 1. Determine Side (Friend or Foe)
-        private _sideVar = _rObj getVariable ["AIRDEF_radarSide", ""];
+        private _sideVar = _rObj getVariable ["AIRDEF_radarSide", "AUTO"];
         private _rSide = sideUnknown;
-        
-        switch (toUpper _sideVar) do {
-            case "WEST":        { _rSide = west; };
-            case "BLUFOR":      { _rSide = west; };
-            case "EAST":        { _rSide = east; };
-            case "OPFOR":       { _rSide = east; };
-            case "IND":         { _rSide = independent; };
-            case "INDEPENDENT": { _rSide = independent; };
-            default             { _rSide = side _rObj; };
+
+        switch (toUpper str _sideVar) do {
+            case """WEST""":        { _rSide = west; };
+            case "WEST":            { _rSide = west; };
+            case """BLUFOR""":      { _rSide = west; };
+            case "BLUFOR":          { _rSide = west; };
+            case """EAST""":        { _rSide = east; };
+            case "EAST":            { _rSide = east; };
+            case """OPFOR""":       { _rSide = east; };
+            case "OPFOR":           { _rSide = east; };
+            case """IND""":         { _rSide = independent; };
+            case "IND":             { _rSide = independent; };
+            case """INDEPENDENT""": { _rSide = independent; };
+            case "INDEPENDENT":     { _rSide = independent; };
+            case """ALL""":         { _rSide = _userSide; };
+            case "ALL":             { _rSide = _userSide; };
+            default                 { _rSide = side _rObj; };
         };
-        
+
         // If side is undetermined or civilian, check vehicle config side
         if (_rSide in [civilian, sideUnknown, sideEmpty]) then {
             private _cfgSide = getNumber (configFile >> "CfgVehicles" >> (typeOf _rObj) >> "side");
@@ -156,28 +174,34 @@ private _radarCandidates = [];
                 };
             };
         };
-        
+
         private _isFriendly = (_rSide == _userSide) || { [_rSide, _userSide] call BIS_fnc_sideIsFriendly };
-        
-        // 2. Determine Range
+
+        // 2. Determine Individual Range
         private _customRange = _rObj getVariable ["AIRDEF_radarRange", -1];
-        private _rRange = if (_customRange > 0) then {
+        private _baseRange = if (_customRange > 0) then {
             _customRange
         } else {
             private _type = typeOf _rObj;
             private _cfgR = getNumber (configFile >> "CfgVehicles" >> _type >> "Components" >> "SensorsManagerComponent" >> "Components" >> "ActiveRadarSensorComponent" >> "AirTarget" >> "maxRange");
+            if (_cfgR <= 0) then {
+                _cfgR = getNumber (configFile >> "CfgVehicles" >> _type >> "Turrets" >> "MainTurret" >> "Components" >> "SensorsManagerComponent" >> "Components" >> "ActiveRadarSensorComponent" >> "AirTarget" >> "maxRange");
+            };
             if (_cfgR > 0) then {
                 _cfgR
             } else {
                 switch (true) do {
                     case (_type in ["Land_Radar_F", "Radar_System_01_base_F", "Radar_System_02_base_F", "B_Radar_System_01_F", "O_Radar_System_02_F"]): { 35000 };
                     case (_type in ["Land_Radar_small_F", "Land_Airfield_Tower_F"]): { 15000 };
-                    case (_rObj isKindOf "StaticWeapon"): { 35000 };
+                    case (_rObj isKindOf "StaticWeapon"): { 32000 };
                     default { 25000 };
                 };
             };
         };
-        
+
+        // Scale by map range multiplier
+        private _rRange = round (_baseRange * _rangeMult);
+
         // 3. Determine Name
         private _rName = _rObj getVariable ["AIRDEF_radarName", ""];
         if (_rName == "") then { _rName = vehicleVarName _rObj; };
@@ -185,9 +209,9 @@ private _radarCandidates = [];
             _rName = getText (configFile >> "CfgVehicles" >> typeOf _rObj >> "displayName");
             if (_rName == "") then { _rName = if (_isFriendly) then {"ПОСТ РЛС"} else {"РЛС ПРОТИВНИКА"}; };
         };
-        
+
         private _phase = (round ((_rPos select 0) + (_rPos select 1))) % 360;
-        
+
         if (_isFriendly) then {
             _foundFriendly pushBack [_rObj, _rPos, _rRange, _rName, _phase];
         } else {
@@ -199,7 +223,8 @@ private _radarCandidates = [];
 // Fallback: if no radar object on map, create field station at player
 if (count _foundFriendly == 0) then {
     private _basePos = getPosASL player;
-    _foundFriendly pushBack [player, _basePos, 25000, "ПОЛЕВОЙ ПОСТ РЛС", 0];
+    private _fallbackRange = round (15000 * _rangeMult);
+    _foundFriendly pushBack [player, _basePos, _fallbackRange, "ПОЛЕВОЙ ПОСТ РЛС", 0];
 };
 
 AIRDEF_activeRadars  = _foundFriendly;

@@ -120,6 +120,10 @@ class AIRDEF_RscButton: RscButton
 // Inherits from RscMapControl to guarantee all engine properties exist
 class AIRDEF_RscMapControl: RscMapControl
 {
+    drawObjects = 0;
+    showMarkers = 0;
+    showTasks = 0;
+    showCountourInterval = 0;
     font = "EtelkaMonospacePro";
     sizeEx = 0.03;
     scaleMin = 0.001;

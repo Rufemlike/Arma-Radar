@@ -21,6 +21,15 @@ class CfgPatches
 #include "UI\radar_display.hpp"
 #include "CfgFunctions.hpp"
 
+// CBA Extended Event Handlers for Settings Pre-Initialization
+class Extended_PreInit_EventHandlers
+{
+    class arma_radar
+    {
+        init = "call AIRDEF_fnc_preInit";
+    };
+};
+
 // ================= EDEN EDITOR CUSTOM ATTRIBUTES =================
 class Cfg3DEN
 {
@@ -34,32 +43,112 @@ class Cfg3DEN
                 collapsed = 0;
                 class Attributes
                 {
+                    class AIRDEF_IsTerminal
+                    {
+                        displayName = "Сделать терминалом доступа к РЛС";
+                        tooltip = "Игроки смогут подойти к этому объекту и открыть экран радара через меню действий";
+                        property = "AIRDEF_isTerminal_prop";
+                        control = "Checkbox";
+                        expression = "if (_value isEqualTo true || {_value isEqualTo 1}) then { _this setVariable ['AIRDEF_isTerminal', true, true]; if (hasInterface) then { [_this] call AIRDEF_fnc_setupTerminal; }; } else { _this setVariable ['AIRDEF_isTerminal', false, true]; };";
+                        defaultValue = "false";
+                    };
+                    class AIRDEF_TerminalSide
+                    {
+                        displayName = "Сторона доступа к терминалу";
+                        tooltip = "Какая сторона имеет доступ к этому терминалу РЛС";
+                        property = "AIRDEF_terminalSide_prop";
+                        control = "Combo";
+                        defaultValue = "'ANY'";
+                        expression = "if (!isNil '_value' && {!(_value isEqualTo '')}) then { _this setVariable ['AIRDEF_terminalSide', _value, true]; };";
+                        class Values
+                        {
+                            class AnySide
+                            {
+                                name = "Любая сторона (Свободный доступ)";
+                                data = "ANY";
+                                value = "ANY";
+                                default = 1;
+                            };
+                            class West
+                            {
+                                name = "Только WEST (Синие / BLUFOR)";
+                                data = "WEST";
+                                value = "WEST";
+                            };
+                            class East
+                            {
+                                name = "Только EAST (Красные / OPFOR)";
+                                data = "EAST";
+                                value = "EAST";
+                            };
+                            class Indep
+                            {
+                                name = "Только INDEPENDENT (Зеленые / Guerrilla)";
+                                data = "INDEPENDENT";
+                                value = "INDEPENDENT";
+                            };
+                        };
+                    };
                     class AIRDEF_IsRadar
                     {
                         displayName = "Сделать станцией РЛС";
                         tooltip = "Отметьте, чтобы этот объект стал активным постом РЛС";
                         property = "AIRDEF_isRadar_prop";
                         control = "Checkbox";
-                        expression = "if (_value isEqualTo true || {_value isEqualTo 1}) then { _this setVariable ['AIRDEF_isRadar', true, true]; };";
+                        expression = "if (_value isEqualTo true || {_value isEqualTo 1}) then { _this setVariable ['AIRDEF_isRadar', true, true]; } else { _this setVariable ['AIRDEF_isRadar', false, true]; };";
                         defaultValue = "false";
                     };
                     class AIRDEF_RadarSide
                     {
-                        displayName = "Сторона РЛС (WEST / EAST / IND)";
-                        tooltip = "Принадлежность радара: WEST (Синие), EAST (Красные), INDEPENDENT (Зеленые). Вражеские радары отображаются красными зонами угрозы ПВО!";
+                        displayName = "Сторона РЛС";
+                        tooltip = "Принадлежность радара к стороне. Вражеские радары отображаются красными зонами угрозы ПВО!";
                         property = "AIRDEF_radarSide_prop";
-                        control = "Edit";
-                        expression = "if (!(_value isEqualTo '')) then { _this setVariable ['AIRDEF_radarSide', toUpper (str _value), true]; };";
-                        defaultValue = "''";
+                        control = "Combo";
+                        defaultValue = "'AUTO'";
+                        expression = "if (!isNil '_value' && {!(_value isEqualTo '')}) then { _this setVariable ['AIRDEF_radarSide', _value, true]; };";
+                        class Values
+                        {
+                            class Auto
+                            {
+                                name = "Авто (по фракции/экипажу)";
+                                data = "AUTO";
+                                value = "AUTO";
+                                default = 1;
+                            };
+                            class West
+                            {
+                                name = "WEST (Синие / BLUFOR)";
+                                data = "WEST";
+                                value = "WEST";
+                            };
+                            class East
+                            {
+                                name = "EAST (Красные / OPFOR)";
+                                data = "EAST";
+                                value = "EAST";
+                            };
+                            class Indep
+                            {
+                                name = "INDEPENDENT (Зеленые / Guerrilla)";
+                                data = "INDEPENDENT";
+                                value = "INDEPENDENT";
+                            };
+                            class AllSides
+                            {
+                                name = "ДЛЯ ВСЕХ (Общий радар)";
+                                data = "ALL";
+                                value = "ALL";
+                            };
+                        };
                     };
                     class AIRDEF_RadarRange
                     {
                         displayName = "Дальность РЛС (в метрах)";
-                        tooltip = "Радиус зоны обнаружения (например: 25000 для 25 км, 35000 для 35 км)";
+                        tooltip = "Радиус обнаружения для этой РЛС (например: 5000, 10000, 25000). 0 = паспортная дальность из конфига сенсоров";
                         property = "AIRDEF_radarRange_prop";
                         control = "Edit";
-                        expression = "if (!(_value isEqualTo '')) then { _this setVariable ['AIRDEF_radarRange', parseNumber (str _value), true]; };";
-                        defaultValue = "''";
+                        expression = "private _val = if (_value isEqualType 0) then {_value} else {parseNumber _value}; if (_val > 0) then { _this setVariable ['AIRDEF_radarRange', _val, true]; };";
+                        defaultValue = "'0'";
                     };
                     class AIRDEF_RadarName
                     {
@@ -67,7 +156,7 @@ class Cfg3DEN
                         tooltip = "Название станции, которое будет отображаться на экране радара";
                         property = "AIRDEF_radarName_prop";
                         control = "Edit";
-                        expression = "if (!(_value isEqualTo '')) then { _this setVariable ['AIRDEF_radarName', str _value, true]; };";
+                        expression = "if (!(_value isEqualTo '')) then { _this setVariable ['AIRDEF_radarName', _value, true]; };";
                         defaultValue = "''";
                     };
                     class AIRDEF_AirCallsign
@@ -76,7 +165,7 @@ class Cfg3DEN
                         tooltip = "Позывной самолета/вертолета на диспетчерском радаре (например: Борт-101, Сокол-1)";
                         property = "AIRDEF_callsign_prop";
                         control = "Edit";
-                        expression = "if (!(_value isEqualTo '')) then { _this setVariable ['AIRDEF_callsign', str _value, true]; };";
+                        expression = "if (!(_value isEqualTo '')) then { _this setVariable ['AIRDEF_callsign', _value, true]; };";
                         defaultValue = "''";
                     };
                 };
@@ -99,7 +188,7 @@ class CfgVehicles
                 position = "";
                 radius = 5;
                 onlyForPlayer = 1;
-                condition = "alive player && (player isKindOf 'CAManBase') && (missionNamespace getVariable ['AIRDEF_enabled', true])";
+                condition = "alive player && (player isKindOf 'CAManBase') && (missionNamespace getVariable ['AIRDEF_enabled', true]) && !(missionNamespace getVariable ['AIRDEF_requireTerminal', false])";
                 statement = "[] spawn AIRDEF_fnc_openRadar;";
                 priority = 0.5;
             };

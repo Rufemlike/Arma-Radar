@@ -12,6 +12,15 @@
 
 params ["_map"];
 
+private _userSide = playerSide;
+if (_userSide in [sideLogic, civilian, sideUnknown]) then {
+    if (!isNull player && { (side (group player)) in [west, east, independent] }) then {
+        _userSide = side (group player);
+    } else {
+        _userSide = west;
+    };
+};
+
 // ================= 1. FRIENDLY RADAR NETWORK (GREEN CRT) =================
 {
     _x params ["_rObj", "_rPos", "_rRange", "_rName", "_phaseOffset"];
@@ -123,17 +132,19 @@ params ["_map"];
         };
     };
     
-    _map drawIcon [
-        "\A3\ui_f\data\map\markers\nato\b_installation.paa",
-        [0.2, 1, 0.4, 0.95],
-        _rCenter2D,
-        22, 22, 0,
-        _rName,
-        0,
-        0.028,
-        "EtelkaMonospaceProBold",
-        "right"
-    ];
+    if (AIRDEF_filter in ["ALL", "FRIENDLY", "DATALINK"]) then {
+        _map drawIcon [
+            "\A3\ui_f\data\map\markers\nato\b_installation.paa",
+            [0.2, 1, 0.4, 0.95],
+            _rCenter2D,
+            22, 22, 0,
+            _rName,
+            0,
+            0.028,
+            "EtelkaMonospaceProBold",
+            "right"
+        ];
+    };
 } forEach AIRDEF_activeRadars;
 
 
@@ -161,17 +172,19 @@ params ["_map"];
         ];
     };
     
-    _map drawIcon [
-        "\A3\ui_f\data\map\markers\nato\o_installation.paa",
-        [1, 0.3, 0.2, 0.9],
-        _rCenter2D,
-        20, 20, 0,
-        format ["[!] %1", _rName],
-        0,
-        0.026,
-        "EtelkaMonospaceProBold",
-        "right"
-    ];
+    if (AIRDEF_filter in ["ALL", "HOSTILE"]) then {
+        _map drawIcon [
+            "\A3\ui_f\data\map\markers\nato\o_installation.paa",
+            [1, 0.3, 0.2, 0.9],
+            _rCenter2D,
+            20, 20, 0,
+            format ["[!] %1", _rName],
+            0,
+            0.026,
+            "EtelkaMonospaceProBold",
+            "right"
+        ];
+    };
 } forEach AIRDEF_hostileRadars;
 
 
@@ -181,10 +194,12 @@ params ["_map"];
         "_id", "_obj", "_pos", "_timeSeen", "_speedKmh", "_altM", "_dir", "_name", "_side", "_isMissile", "_isDataLink"
     ];
 
+    private _isFriendlyTrack = (_side == _userSide || [_userSide, _side] call BIS_fnc_sideIsFriendly);
+
     private _displayTarget = true;
     switch (AIRDEF_filter) do {
-        case "FRIENDLY": { _displayTarget = (_side == playerSide && !_isMissile); };
-        case "HOSTILE":  { _displayTarget = (_side != playerSide && !_isMissile); };
+        case "FRIENDLY": { _displayTarget = (_isFriendlyTrack && !_isMissile); };
+        case "HOSTILE":  { _displayTarget = (!_isFriendlyTrack && !_isMissile); };
         case "MISSILES": { _displayTarget = _isMissile; };
         case "DATALINK": { _displayTarget = _isDataLink; };
         default          { _displayTarget = true; };
@@ -217,7 +232,7 @@ params ["_map"];
             };
         } else {
             // 3.2. FRIENDLY AIRCRAFT (IFF)
-            if (_side == playerSide) then {
+            if (_isFriendlyTrack) then {
                 private _isRotary = if (!isNull _obj) then { _obj isKindOf "Helicopter" } else { false };
                 private _iconPath = if (_isRotary) then { "\A3\ui_f\data\map\markers\nato\b_air.paa" } else { "\A3\ui_f\data\map\markers\nato\b_plane.paa" };
                 private _fColor = [0.2, 1, 0.45, 0.95];

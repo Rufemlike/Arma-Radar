@@ -28,12 +28,8 @@ AIRDEF_radarClasses = [
     "O_SAM_System_04_F"
 ];
 
-// Settings
-if (isNil "AIRDEF_filter") then { AIRDEF_filter = "ALL"; };
-if (isNil "AIRDEF_showRings") then { AIRDEF_showRings = true; };
-if (isNil "AIRDEF_showSweep") then { AIRDEF_showSweep = true; };
-if (isNil "AIRDEF_showVectors") then { AIRDEF_showVectors = true; };
-if (isNil "AIRDEF_sweepSpeed") then { AIRDEF_sweepSpeed = 60; };
+// Ensure preInit settings are registered
+[] call AIRDEF_fnc_preInit;
 
 // State storage
 AIRDEF_selectedUnit = objNull;
@@ -48,7 +44,17 @@ if (isClass (configFile >> "CfgPatches" >> "cba_main")) then {
                 (findDisplay 78500) closeDisplay 1;
             };
         } else {
-            [] spawn AIRDEF_fnc_openRadar;
+            if (missionNamespace getVariable ["AIRDEF_requireTerminal", false]) then {
+                private _nearTerminals = (nearestObjects [player, ["All"], 4]) select {
+                    (_x getVariable ["AIRDEF_isTerminal", false]) && { alive _x }
+                };
+                if (count _nearTerminals == 0) exitWith {
+                    systemChat "[AIRDEF] Доступ к РЛС открыт только через физический терминал на базе!";
+                };
+                [] spawn AIRDEF_fnc_openRadar;
+            } else {
+                [] spawn AIRDEF_fnc_openRadar;
+            };
         };
         true
     }, {}, [19, [true, false, false]]] call CBA_fnc_addKeybind;
@@ -56,11 +62,21 @@ if (isClass (configFile >> "CfgPatches" >> "cba_main")) then {
 
 // ================= BACKGROUND RADAR DISCOVERY & MAP MARKERS LOOP =================
 // Continuously scans for placed radars (in Zeus, 3DEN or scripts) every 2 seconds,
-// auto-activates unmanned radars, and maintains 2D map & Zeus coverage markers.
+// auto-activates unmanned radars, maintains coverage markers, and hooks terminal actions.
 [] spawn {
     while {true} do {
         try {
             [] call AIRDEF_fnc_scanTargets;
+
+            // Auto-setup terminals for objects marked with AIRDEF_isTerminal
+            if (hasInterface) then {
+                private _terminals = (allMissionObjects "All") select {
+                    (_x getVariable ["AIRDEF_isTerminal", false]) && { !(_x getVariable ["AIRDEF_terminalActionAdded", false]) }
+                };
+                {
+                    [_x] call AIRDEF_fnc_setupTerminal;
+                } forEach _terminals;
+            };
         } catch {};
         sleep 2;
     };
@@ -152,5 +168,58 @@ if (isClass (configFile >> "CfgPatches" >> "zen_context_menu")) then {
         ] call zen_context_menu_fnc_createAction;
 
         [_actRadar, [], 0] call zen_context_menu_fnc_addAction;
+
+        // 3. Configure Radar Terminal on the fly in Zeus
+        private _actTerminal = [
+            "AIRDEF_configTerminal",
+            "Air Defender: Сделать терминалом РЛС",
+            "\A3\ui_f\data\map\markers\nato\b_installation.paa",
+            {
+                params ["_position", ["_objects", []]];
+                if (count _objects == 0) exitWith {};
+                private _target = _objects select 0;
+                private _isTerm = _target getVariable ["AIRDEF_isTerminal", false];
+                private _curSide = _target getVariable ["AIRDEF_terminalSide", "ANY"];
+                private _sideIndex = switch (toUpper _curSide) do {
+                    case "WEST": { 1 };
+                    case "EAST": { 2 };
+                    case "INDEPENDENT": { 3 };
+                    case "IND": { 3 };
+                    default { 0 };
+                };
+
+                [
+                    "Настройка терминала доступа к РЛС",
+                    [
+                        ["CHECKBOX", ["Сделать терминалом", "Игроки смогут подойти к этому объекту и открыть радар"], !_isTerm],
+                        ["COMBO", ["Сторона доступа", "Какая сторона сможет пользоваться этим терминалом"], [["ANY", "WEST", "EAST", "INDEPENDENT"], ["Любая сторона (Свободно)", "WEST (Синие)", "EAST (Красные)", "INDEPENDENT (Зеленые)"], _sideIndex]]
+                    ],
+                    {
+                        params ["_dialogValues", "_args"];
+                        private _enableTerm = _dialogValues select 0;
+                        private _sideChoice = _dialogValues select 1;
+                        private _obj = _args select 0;
+
+                        _obj setVariable ["AIRDEF_isTerminal", _enableTerm, true];
+                        _obj setVariable ["AIRDEF_terminalSide", _sideChoice, true];
+                        if (_enableTerm) then {
+                            [_obj] remoteExec ["AIRDEF_fnc_setupTerminal", 0, true];
+                            systemChat format ["[AIRDEF] Объект '%1' теперь терминал доступа к РЛС (%2)", typeOf _obj, _sideChoice];
+                        } else {
+                            systemChat format ["[AIRDEF] Терминал '%1' деактивирован", typeOf _obj];
+                        };
+                    },
+                    {},
+                    [_target]
+                ] call zen_dialog_fnc_create;
+            },
+            {
+                params ["_position", ["_objects", []]];
+                count _objects > 0
+            },
+            []
+        ] call zen_context_menu_fnc_createAction;
+
+        [_actTerminal, [], 0] call zen_context_menu_fnc_addAction;
     };
 };
