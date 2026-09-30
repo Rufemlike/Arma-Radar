@@ -267,7 +267,7 @@ class AIRDEF_Radar_Display
             y = "safezoneY + 0.515 * safezoneH";
             w = "0.204 * safezoneW";
             h = "0.034 * safezoneH";
-            text = "[1] ВЕКТОРЕНИЕ";
+            text = "[1] ВЕКТОРЕНИЕ (РАДИО)";
             action = "['ACTION', 'VECTOR'] call AIRDEF_fnc_uiInteractions;";
         };
 
@@ -278,7 +278,7 @@ class AIRDEF_Radar_Display
             y = "safezoneY + 0.555 * safezoneH";
             w = "0.204 * safezoneW";
             h = "0.034 * safezoneH";
-            text = "[2] ИИ: ПЕРЕХВАТ";
+            text = "[2] ПРИКАЗ: ПЕРЕХВАТ";
             action = "['ACTION', 'INTERCEPT_AI'] call AIRDEF_fnc_uiInteractions;";
         };
 
@@ -289,7 +289,7 @@ class AIRDEF_Radar_Display
             y = "safezoneY + 0.595 * safezoneH";
             w = "0.204 * safezoneW";
             h = "0.034 * safezoneH";
-            text = "[3] ИИ: ПАТРУЛЬ";
+            text = "[3] ПРИКАЗ: ПАТРУЛЬ (CAP)";
             action = "['ACTION', 'CAP_AI'] call AIRDEF_fnc_uiInteractions;";
         };
 
@@ -300,7 +300,7 @@ class AIRDEF_Radar_Display
             y = "safezoneY + 0.635 * safezoneH";
             w = "0.204 * safezoneW";
             h = "0.034 * safezoneH";
-            text = "[4] ИИ: НА БАЗУ";
+            text = "[4] ПРИКАЗ: НА БАЗУ (RTB)";
             action = "['ACTION', 'RTB'] call AIRDEF_fnc_uiInteractions;";
         };
 

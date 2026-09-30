@@ -13,6 +13,7 @@ class CfgFunctions
             class scanTargets {};
             class vectorIntercept {};
             class commandAi {};
+            class commandPilot {};
             class uiInteractions {};
             class setupTerminal {};
         };

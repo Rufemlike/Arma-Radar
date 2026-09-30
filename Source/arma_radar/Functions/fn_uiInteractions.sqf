@@ -160,7 +160,14 @@ switch (_actionType) do {
     case "MAP_CLICK_COMMAND": {
         private _worldPos = _param;
         if (!isNull AIRDEF_selectedUnit && { alive AIRDEF_selectedUnit }) then {
-            [AIRDEF_selectedUnit, _worldPos, "CAP"] call AIRDEF_fnc_commandAi;
+            private _crewPlayers = (crew AIRDEF_selectedUnit) select { isPlayer _x };
+            if (count _crewPlayers > 0) then {
+                [AIRDEF_selectedUnit, "CAP", _worldPos] call AIRDEF_fnc_commandPilot;
+                systemChat format ["[AIRDEF] Точка маршрута передана пилоту-игроку (%1)", name (_crewPlayers select 0)];
+            };
+            if (!isPlayer (driver AIRDEF_selectedUnit)) then {
+                [AIRDEF_selectedUnit, _worldPos, "CAP"] call AIRDEF_fnc_commandAi;
+            };
             playSoundUI ["\A3\ui_f\data\sound\RscButton\soundClick.wss", 0.5, 1];
         };
     };
@@ -238,20 +245,41 @@ switch (_actionType) do {
                 if (isNull AIRDEF_selectedUnit || isNull AIRDEF_targetUnit) exitWith {
                     systemChat "[AIRDEF] Выберите союзный борт и цель для перехвата.";
                 };
-                [AIRDEF_selectedUnit, AIRDEF_targetUnit, "INTERCEPT"] call AIRDEF_fnc_commandAi;
+                private _crewPlayers = (crew AIRDEF_selectedUnit) select { isPlayer _x };
+                if (count _crewPlayers > 0) then {
+                    [AIRDEF_selectedUnit, "INTERCEPT", AIRDEF_targetUnit] call AIRDEF_fnc_commandPilot;
+                    systemChat format ["[AIRDEF] Приказ на ПЕРЕХВАТ передан пилоту-игроку (%1)", name (_crewPlayers select 0)];
+                };
+                if (!isPlayer (driver AIRDEF_selectedUnit)) then {
+                    [AIRDEF_selectedUnit, AIRDEF_targetUnit, "INTERCEPT"] call AIRDEF_fnc_commandAi;
+                };
             };
             case "CAP_AI": {
                 if (isNull AIRDEF_selectedUnit) exitWith {
                     systemChat "[AIRDEF] Выберите союзный борт для назначения патруля.";
                 };
                 private _pos = if (!isNull AIRDEF_targetUnit) then { getPosATL AIRDEF_targetUnit } else { screenToWorld [0.5, 0.5] };
-                [AIRDEF_selectedUnit, _pos, "CAP"] call AIRDEF_fnc_commandAi;
+                private _crewPlayers = (crew AIRDEF_selectedUnit) select { isPlayer _x };
+                if (count _crewPlayers > 0) then {
+                    [AIRDEF_selectedUnit, "CAP", _pos] call AIRDEF_fnc_commandPilot;
+                    systemChat format ["[AIRDEF] Сектор ПАТРУЛИРОВАНИЯ (CAP) передан пилоту-игроку (%1)", name (_crewPlayers select 0)];
+                };
+                if (!isPlayer (driver AIRDEF_selectedUnit)) then {
+                    [AIRDEF_selectedUnit, _pos, "CAP"] call AIRDEF_fnc_commandAi;
+                };
             };
             case "RTB": {
                 if (isNull AIRDEF_selectedUnit) exitWith {
                     systemChat "[AIRDEF] Выберите союзный борт для приказа возврата на базу.";
                 };
-                [AIRDEF_selectedUnit, objNull, "RTB"] call AIRDEF_fnc_commandAi;
+                private _crewPlayers = (crew AIRDEF_selectedUnit) select { isPlayer _x };
+                if (count _crewPlayers > 0) then {
+                    [AIRDEF_selectedUnit, "RTB", objNull] call AIRDEF_fnc_commandPilot;
+                    systemChat format ["[AIRDEF] Приказ ВОЗВРАТА НА БАЗУ (RTB) передан пилоту-игроку (%1)", name (_crewPlayers select 0)];
+                };
+                if (!isPlayer (driver AIRDEF_selectedUnit)) then {
+                    [AIRDEF_selectedUnit, objNull, "RTB"] call AIRDEF_fnc_commandAi;
+                };
             };
             case "CLEAR": {
                 AIRDEF_selectedUnit = objNull;

@@ -66,20 +66,5 @@ private _msg = format [
 systemChat _msg;
 playSoundUI ["\A3\ui_f\data\sound\RscButton\soundClick.wss", 0.5, 1];
 
-// Transmit to pilot safely (handling singleplayer vs multiplayer without steamworks DLL proxy crash)
-if (!isNull _pilot && { isPlayer _pilot }) then {
-    if (_pilot isEqualTo player) then {
-        hint parseText format [
-            "<t color='#00FF44' font='EtelkaMonospaceProBold' size='1.2'>[ПРИКАЗ ДИСПЕТЧЕРА GCI]</t><br/>" +
-            "<t color='#FFFFFF' font='EtelkaMonospacePro'>КУРС НАВЕДЕНИЯ: <t color='#00FF44'>%1°</t><br/>" +
-            "ДИСТАНЦИЯ: <t color='#00FF44'>%2 км</t><br/>" +
-            "ЭШЕЛОН ЦЕЛИ: <t color='#00FF44'>%3 м</t><br/>" +
-            "РАСЧЕТНОЕ ВРЕМЯ: <t color='#00FF44'>%4</t></t>",
-            _bearing, round (_dist / 1000), _tAlt, _etaStr
-        ];
-    } else {
-        if (isMultiplayer) then {
-            [_msg] remoteExec ["systemChat", _pilot];
-        };
-    };
-};
+// Transmit tactical GCI command, HUD telemetry card, and GPS tracking marker to the pilot
+[_friendly, "INTERCEPT", _target] call AIRDEF_fnc_commandPilot;
