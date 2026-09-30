@@ -78,6 +78,19 @@ if (isClass (configFile >> "CfgPatches" >> "cba_main")) then {
                 {
                     [_x] call AIRDEF_fnc_setupTerminal;
                 } forEach _terminals;
+
+                // Auto-setup 3D Tactical Radar Boards (ONLY objects explicitly given AIRDEF_isRadarBoard parameter or enabled in Zeus)
+                private _boardObjects = (allMissionObjects "All") select {
+                    !(_x isKindOf "CAManBase") && {
+                        _x getVariable ["AIRDEF_isRadarBoard", false]
+                    }
+                };
+                {
+                    if !(_x getVariable ["AIRDEF_boardInitialized", false]) then {
+                        _x setVariable ["AIRDEF_boardInitialized", true];
+                        [_x] call AIRDEF_fnc_radarBoard;
+                    };
+                } forEach _boardObjects;
             };
         } catch {};
         sleep 2;
@@ -223,5 +236,51 @@ if (isClass (configFile >> "CfgPatches" >> "zen_context_menu")) then {
         ] call zen_context_menu_fnc_createAction;
 
         [_actTerminal, [], 0] call zen_context_menu_fnc_addAction;
+
+        // 4. Configure Tactical Radar Board on the fly in Zeus
+        private _actBoard = [
+            "AIRDEF_configBoard",
+            "Air Defender: Сделать тактической доской РЛС",
+            "\A3\ui_f\data\map\markers\nato\b_hq.paa",
+            {
+                params ["_position", ["_objects", []]];
+                if (count _objects == 0) exitWith {};
+                private _target = _objects select 0;
+                private _isBoard = _target getVariable ["AIRDEF_isRadarBoard", false];
+                
+                [
+                    "Тактическая доска РЛС в 3D",
+                    [
+                        ["CHECKBOX", ["Сделать тактической доской", "Отображать живой радар на поверхности объекта в 3D"], !_isBoard]
+                    ],
+                    {
+                        params ["_dialogValues", "_args"];
+                        private _enableBoard = _dialogValues select 0;
+                        private _obj = _args select 0;
+
+                        _obj setVariable ["AIRDEF_isRadarBoard", _enableBoard, true];
+                        if (_enableBoard) then {
+                            [_obj] remoteExec ["AIRDEF_fnc_radarBoard", 0, true];
+                            systemChat format ["[AIRDEF] Объект '%1' активирован как тактическая доска РЛС!", typeOf _obj];
+                        } else {
+                            private _boards = missionNamespace getVariable ["AIRDEF_radarBoards", []];
+                            _boards = _boards - [_obj];
+                            missionNamespace setVariable ["AIRDEF_radarBoards", _boards, true];
+                            _obj setVariable ["AIRDEF_boardInitialized", false, true];
+                            systemChat format ["[AIRDEF] Доска РЛС '%1' деактивирована", typeOf _obj];
+                        };
+                    },
+                    {},
+                    [_target]
+                ] call zen_dialog_fnc_create;
+            },
+            {
+                params ["_position", ["_objects", []]];
+                count _objects > 0 && { !((_objects select 0) isKindOf "CAManBase") }
+            },
+            []
+        ] call zen_context_menu_fnc_createAction;
+
+        [_actBoard, [], 0] call zen_context_menu_fnc_addAction;
     };
 };

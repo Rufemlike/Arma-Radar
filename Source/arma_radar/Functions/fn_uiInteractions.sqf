@@ -150,7 +150,14 @@ switch (_actionType) do {
         
         // 1. Check aircraft & missile contacts
         {
+            private _tObj = _x select 1;
             private _tPos = _x select 2;
+            if (!isNull _tObj) then {
+                private _plotData = _tObj getVariable ["AIRDEF_plotData", []];
+                if (count _plotData > 0) then {
+                    _tPos = _plotData select 0;
+                };
+            };
             private _dist = 999999;
             
             if (_clickScreenX >= 0 && !isNull _map) then {
@@ -204,31 +211,85 @@ switch (_actionType) do {
             
             private _ctrlInfo = _display displayCtrl 78510;
             if (!isNull _ctrlInfo) then {
-                private _sideColor = if (_isMissile) then {"#FF2222"} else { if (_isFriendly) then {"#00FF44"} else {"#FF5533"} };
-                private _sideStr   = if (_isMissile) then {"УГРОЗА (РАКЕТА)"} else { if (_isFriendly) then {"СОЮЗНИК (IFF)"} else {"ПРОТИВНИК / ЦЕЛЬ"} };
-                private _pilotName = if (!isNull _obj && { count (crew _obj) > 0 }) then { name (driver _obj) } else { "Н/Д" };
-                private _fuelPercent = round (_fuel * 100);
-                private _dmgPercent  = round (_damage * 100);
-                
-                private _distFromMe = round ((_pos distance (getPosASL player)) / 1000);
-                
-                private _html = format [
-                    "<t color='%1' font='PuristaBold' size='1.1'>[%2]</t><br/>" +
-                    "<t color='#FFFFFF' font='PuristaBold'>ИМЯ/ТИП: </t><t color='#00FF44'>%3</t><br/>" +
-                    "<t color='#FFFFFF' font='PuristaBold'>ПИЛОТ: </t><t color='#00FF44'>%4</t><br/>" +
-                    "<t color='#555555'>--------------------------------</t><br/>" +
-                    "<t color='#FFFFFF'>ВЫСОТА: </t><t color='#00FF44'>%5 м</t><br/>" +
-                    "<t color='#FFFFFF'>СКОРОСТЬ: </t><t color='#00FF44'>%6 км/ч</t><br/>" +
-                    "<t color='#FFFFFF'>КУРС: </t><t color='#00FF44'>%7°</t><br/>" +
-                    "<t color='#FFFFFF'>ДИСТАНЦИЯ: </t><t color='#00FF44'>%8 км</t><br/>" +
-                    "<t color='#555555'>--------------------------------</t><br/>" +
-                    "<t color='#FFFFFF'>ТОПЛИВО: </t><t color='#00FF44'>%9%%</t><br/>" +
-                    "<t color='#FFFFFF'>УРОН: </t><t color='%10'>%11%%</t><br/>" +
-                    "<t color='#FFFFFF'>ИСТОЧНИК: </t><t color='#00FF44'>%12</t>",
-                    _sideColor, _sideStr, _name, _pilotName, _altM, _speedKmh, _dir, _distFromMe,
-                    _fuelPercent, if (_dmgPercent > 30) then {"#FF2222"} else {"#00FF44"}, _dmgPercent,
-                    if (_isDataLink) then {"DATALINK СЕТЬ"} else {"НАЗЕМНАЯ РЛС"}
-                ];
+                private _targetPos = _pos;
+                if (!isNull _obj) then {
+                    private _plotData = _obj getVariable ["AIRDEF_plotData", []];
+                    if (count _plotData > 0) then {
+                        _targetPos = _plotData select 0;
+                    };
+                };
+                private _distFromMe = round ((_targetPos distance (getPosASL player)) / 1000);
+                private _html = "";
+
+                if (_isMissile) then {
+                    // === 1. MISSILE / ROCKET THREAT ===
+                    _html = format [
+                        "<t color='#FF2222' font='PuristaBold' size='1.1'>[! ВОЗДУШНАЯ УГРОЗА !]</t><br/>" +
+                        "<t color='#FFFFFF' font='PuristaBold'>ТИП: </t><t color='#FF4444'>СКОРОСТНАЯ КР / УР</t><br/>" +
+                        "<t color='#FFFFFF'>СТАТУС: </t><t color='#FF2222'>ПЕРЕХВАТ В ВОЗДУХЕ</t><br/>" +
+                        "<t color='#555555'>--------------------------------</t><br/>" +
+                        "<t color='#FFFFFF'>ВЫСОТА: </t><t color='#FF5544'>%1 м</t><br/>" +
+                        "<t color='#FFFFFF'>СКОРОСТЬ: </t><t color='#FF5544'>%2 км/ч</t><br/>" +
+                        "<t color='#FFFFFF'>КУРС: </t><t color='#FF5544'>%3°</t><br/>" +
+                        "<t color='#FFFFFF'>ДИСТАНЦИЯ: </t><t color='#FF5544'>%4 км</t><br/>" +
+                        "<t color='#555555'>--------------------------------</t><br/>" +
+                        "<t color='#FFFFFF'>УГРОЗА: </t><t color='#FF2222'>КРИТИЧЕСКАЯ</t><br/>" +
+                        "<t color='#FFFFFF'>ИСТОЧНИК: </t><t color='#FFAA44'>РАДИОЛОКАЦИОННЫЙ КОНТАКТ</t>",
+                        _altM, _speedKmh, _dir, _distFromMe
+                    ];
+                } else {
+                    if (_isFriendly) then {
+                        // === 2. FRIENDLY AIRCRAFT (IFF TRANSPONDER & DATALINK) ===
+                        private _pilotName = if (!isNull _obj && { count (crew _obj) > 0 }) then { name (driver _obj) } else { "Н/Д" };
+                        private _fuelPercent = round (_fuel * 100);
+                        private _dmgPercent  = round (_damage * 100);
+
+                        _html = format [
+                            "<t color='#00FF44' font='PuristaBold' size='1.1'>[СОЮЗНИК (IFF ДАННЫЕ)]</t><br/>" +
+                            "<t color='#FFFFFF' font='PuristaBold'>ПОЗЫВНОЙ/ТИП: </t><t color='#00FF44'>%1</t><br/>" +
+                            "<t color='#FFFFFF' font='PuristaBold'>ПИЛОТ: </t><t color='#00FF44'>%2</t><br/>" +
+                            "<t color='#555555'>--------------------------------</t><br/>" +
+                            "<t color='#FFFFFF'>ВЫСОТА: </t><t color='#00FF44'>%3 м</t><br/>" +
+                            "<t color='#FFFFFF'>СКОРОСТЬ: </t><t color='#00FF44'>%4 км/ч</t><br/>" +
+                            "<t color='#FFFFFF'>КУРС: </t><t color='#00FF44'>%5°</t><br/>" +
+                            "<t color='#FFFFFF'>ДИСТАНЦИЯ: </t><t color='#00FF44'>%6 км</t><br/>" +
+                            "<t color='#555555'>--------------------------------</t><br/>" +
+                            "<t color='#FFFFFF'>ТОПЛИВО: </t><t color='%7'>%8%%</t><br/>" +
+                            "<t color='#FFFFFF'>СОСТОЯНИЕ: </t><t color='%9'>%10</t><br/>" +
+                            "<t color='#FFFFFF'>ИСТОЧНИК: </t><t color='#00FF44'>%11</t>",
+                            _name, _pilotName, _altM, _speedKmh, _dir, _distFromMe,
+                            if (_fuelPercent < 25) then {"#FF4422"} else {"#00FF44"}, _fuelPercent,
+                            if (_dmgPercent > 30) then {"#FF2222"} else {"#00FF44"},
+                            if (_dmgPercent == 0) then {"ИСПРАВЕН"} else { format ["ПОВРЕЖДЕНИЕ %1%%", _dmgPercent] },
+                            if (_isDataLink) then {"DATALINK СЕТЬ"} else {"ТРАНСПОНДЕР IFF"}
+                        ];
+                    } else {
+                        // === 3. HOSTILE / UNIDENTIFIED TARGET (PRIMARY RADAR ECHO ONLY) ===
+                        // Air defense radar receives only pulse reflections. Enemy pilot, fuel, and internal damage are classified/inaccessible!
+                        private _rcsVal = 1.0;
+                        if (!isNull _obj) then {
+                            _rcsVal = getNumber (configFile >> "CfgVehicles" >> (typeOf _obj) >> "radarTargetSize");
+                            if (_rcsVal <= 0) then { _rcsVal = 1.0; };
+                        };
+
+                        _html = format [
+                            "<t color='#FF5533' font='PuristaBold' size='1.1'>[ПРОТИВНИК / ЦЕЛЬ]</t><br/>" +
+                            "<t color='#FFFFFF' font='PuristaBold'>КЛАССИФИКАЦИЯ: </t><t color='#FF7755'>%1</t><br/>" +
+                            "<t color='#FFFFFF'>ЭПР (RCS): </t><t color='#FFAA44'>~%2 м²</t><br/>" +
+                            "<t color='#555555'>--------------------------------</t><br/>" +
+                            "<t color='#FFFFFF'>ВЫСОТА: </t><t color='#FF9966'>%3 м</t><br/>" +
+                            "<t color='#FFFFFF'>СКОРОСТЬ: </t><t color='#FF9966'>%4 км/ч</t><br/>" +
+                            "<t color='#FFFFFF'>КУРС: </t><t color='#FF9966'>%5°</t><br/>" +
+                            "<t color='#FFFFFF'>ДИСТАНЦИЯ: </t><t color='#FF9966'>%6 км</t><br/>" +
+                            "<t color='#555555'>--------------------------------</t><br/>" +
+                            "<t color='#FFFFFF'>ТРАНСПОНДЕР: </t><t color='#FF3333'>НЕТ ОТВЕТА (MODE 4/5 NEG)</t><br/>" +
+                            "<t color='#FFFFFF'>ТЕЛЕМЕТРИЯ: </t><t color='#888888'>НЕДОСТУПНО (ВРАГ)</t><br/>" +
+                            "<t color='#FFFFFF'>ИСТОЧНИК: </t><t color='#FFAA44'>ПЕРВИЧНАЯ РЛС (ЭХО)</t>",
+                            _name, _rcsVal, _altM, _speedKmh, _dir, _distFromMe
+                        ];
+                    };
+                };
+
                 _ctrlInfo ctrlSetStructuredText parseText _html;
             };
         } else {
@@ -258,23 +319,47 @@ switch (_actionType) do {
             
             if (count _closestRadar > 0 && _isRadarHit) then {
                 _closestRadar params ["_rObj", "_rPos", "_rRange", "_rName"];
-                playSoundUI ["\A3\ui_f\data\sound\RscButton\soundClick.wss", 0.5, 1];
+                
+                private _wasAlreadySelected = (!isNil "AIRDEF_selectedRadar" && { AIRDEF_selectedRadar isEqualTo _rObj });
                 AIRDEF_selectedRadar = _rObj;
                 
-                private _ctrlInfo = _display displayCtrl 78510;
-                if (!isNull _ctrlInfo) then {
-                    private _html = format [
-                        "<t color='#00FF44' font='PuristaBold' size='1.1'>[АКТИВНЫЙ ПОСТ РЛС]</t><br/>" +
-                        "<t color='#FFFFFF' font='PuristaBold'>ПОЗЫВНОЙ: </t><t color='#00FF44'>%1</t><br/>" +
-                        "<t color='#555555'>--------------------------------</t><br/>" +
-                        "<t color='#FFFFFF'>ТИП: </t><t color='#00FF44'>%2</t><br/>" +
-                        "<t color='#FFFFFF'>РАДИУС ЗОНЫ: </t><t color='#00FF44'>%3 КМ</t><br/>" +
-                        "<t color='#FFFFFF'>СТАТУС: </t><t color='#00FF44'>АКТИВЕН / ИЗЛУЧЕНИЕ</t><br/>" +
-                        "<t color='#555555'>--------------------------------</t><br/>" +
-                        "<t color='#888888'>Кольца дальности и луч переключены на этот пост РЛС.</t>",
-                        _rName, getText (configFile >> "CfgVehicles" >> typeOf _rObj >> "displayName"), round (_rRange / 1000)
-                    ];
-                    _ctrlInfo ctrlSetStructuredText parseText _html;
+                // If clicked again on the same radar station, toggle emission (ON/OFF)!
+                if (_wasAlreadySelected) then {
+                    ['TOGGLE', 'EMISSION'] call AIRDEF_fnc_uiInteractions;
+                } else {
+                    playSoundUI ["\A3\ui_f\data\sound\RscButton\soundClick.wss", 0.5, 1];
+                    private _isOff = _rObj getVariable ["AIRDEF_radarEmissionOff", false];
+                    private _statusText = if (_isOff) then { "<t color='#FF4422'>РАДИОМОЛЧАНИЕ (ВЫКЛЮЧЕН)</t>" } else { "<t color='#00FF44'>АКТИВЕН / ИЗЛУЧЕНИЕ</t>" };
+                    
+                    // Update toolbar button status
+                    private _btnEm = _display displayCtrl 78544;
+                    if (!isNull _btnEm) then {
+                        _btnEm ctrlSetText (if (_isOff) then { "[!] РАДИОМОЛЧАНИЕ" } else { "[!] ИЗЛУЧЕНИЕ: ВКЛ" });
+                        _btnEm ctrlSetTextColor (if (_isOff) then { [1, 0.3, 0.2, 1] } else { [0.2, 1, 0.4, 1] });
+                    };
+                    
+                    private _ctrlInfo = _display displayCtrl 78510;
+                    if (!isNull _ctrlInfo) then {
+                        private _html = format [
+                            "<t color='%1' font='PuristaBold' size='1.1'>[%2]</t><br/>" +
+                            "<t color='#FFFFFF' font='PuristaBold'>ПОЗЫВНОЙ: </t><t color='#00FF44'>%3</t><br/>" +
+                            "<t color='#555555'>--------------------------------</t><br/>" +
+                            "<t color='#FFFFFF'>ТИП: </t><t color='#00FF44'>%4</t><br/>" +
+                            "<t color='#FFFFFF'>РАДИУС ЗОНЫ: </t><t color='#00FF44'>%5 КМ</t><br/>" +
+                            "<t color='#FFFFFF'>ИЗЛУЧЕНИЕ: </t>%6<br/>" +
+                            "<t color='#555555'>--------------------------------</t><br/>" +
+                            "<t color='%7'>%8</t>",
+                            if (_isOff) then { "#FFAA00" } else { "#00FF44" },
+                            if (_isOff) then { "РЕЖИМ РАДИОМОЛЧАНИЯ" } else { "АКТИВНЫЙ ПОСТ РЛС" },
+                            _rName,
+                            getText (configFile >> "CfgVehicles" >> typeOf _rObj >> "displayName"),
+                            round (_rRange / 1000),
+                            _statusText,
+                            if (_isOff) then { "#FFAA44" } else { "#888888" },
+                            if (_isOff) then { "Передатчик обесточен. Повторный клик или кнопка на панели включает излучение." } else { "Повторный клик по станции или кнопка переключает радиомолчание (срыв наведения ПРР)." }
+                        ];
+                        _ctrlInfo ctrlSetStructuredText parseText _html;
+                    };
                 };
             };
         };
@@ -362,6 +447,81 @@ switch (_actionType) do {
                 AIRDEF_showVectors = !AIRDEF_showVectors;
                 private _btn = _display displayCtrl 78542;
                 _btn ctrlSetText (if (AIRDEF_showVectors) then {"ВЕКТОРЫ: ВКЛ"} else {"ВЕКТОРЫ: ВЫКЛ"});
+            };
+            case "EMISSION": {
+                private _rObj = missionNamespace getVariable ["AIRDEF_selectedRadar", objNull];
+                if (isNull _rObj || { !alive _rObj }) then {
+                    private _active = missionNamespace getVariable ["AIRDEF_activeRadars", []];
+                    if (count _active > 0) then {
+                        _rObj = (_active select 0) select 0;
+                        AIRDEF_selectedRadar = _rObj;
+                    };
+                };
+                if (isNull _rObj || { !alive _rObj }) exitWith {
+                    systemChat "[AIRDEF] Нет доступных постов РЛС.";
+                };
+                
+                private _currentlyOff = _rObj getVariable ["AIRDEF_radarEmissionOff", false];
+                private _newState = !_currentlyOff;
+                _rObj setVariable ["AIRDEF_radarEmissionOff", _newState, true];
+                
+                // Toggle native radar sensor / emitter
+                private _targetRadarState = if (_newState) then { 0 } else { 1 };
+                if (_rObj isKindOf "AllVehicles") then {
+                    _rObj setVehicleRadar _targetRadarState;
+                    if (isMultiplayer) then {
+                        [_rObj, _targetRadarState] remoteExecCall ["setVehicleRadar", _rObj];
+                    };
+                } else {
+                    private _emitter = _rObj getVariable ["AIRDEF_radarEmitter", objNull];
+                    if (!isNull _emitter) then {
+                        _emitter setVehicleRadar _targetRadarState;
+                        if (isMultiplayer) then {
+                            [_emitter, _targetRadarState] remoteExecCall ["setVehicleRadar", _emitter];
+                        };
+                    };
+                };
+                
+                private _btn = _display displayCtrl 78544;
+                if (!isNull _btn) then {
+                    _btn ctrlSetText (if (_newState) then { "[!] РАДИОМОЛЧАНИЕ" } else { "[!] ИЗЛУЧЕНИЕ: ВКЛ" });
+                    _btn ctrlSetTextColor (if (_newState) then { [1, 0.3, 0.2, 1] } else { [0.2, 1, 0.4, 1] });
+                };
+                
+                if (_newState) then {
+                    systemChat format ["[AIRDEF] РЛС '%1': ИЗЛУЧЕНИЕ ВЫКЛЮЧЕНО! Режим радиомолчания (срыв наведения ПРР).", _rObj getVariable ["AIRDEF_radarName", "Пост РЛС"]];
+                    playSoundUI ["\A3\ui_f\data\sound\RscButton\soundEscape.wss", 0.7, 1];
+                } else {
+                    systemChat format ["[AIRDEF] РЛС '%1': ИЗЛУЧЕНИЕ ВКЛЮЧЕНО! Станция в эфире.", _rObj getVariable ["AIRDEF_radarName", "Пост РЛС"]];
+                    playSoundUI ["\A3\ui_f\data\sound\RscButton\soundClick.wss", 0.7, 1.2];
+                };
+                
+                // Update info panel
+                private _ctrlInfo = _display displayCtrl 78510;
+                if (!isNull _ctrlInfo) then {
+                    private _rName = _rObj getVariable ["AIRDEF_radarName", "Пост РЛС"];
+                    private _rRange = _rObj getVariable ["AIRDEF_radarRange", 35000];
+                    private _statusText = if (_newState) then { "<t color='#FF4422'>РАДИОМОЛЧАНИЕ (ВЫКЛЮЧЕН)</t>" } else { "<t color='#00FF44'>АКТИВЕН / ИЗЛУЧЕНИЕ</t>" };
+                    private _html = format [
+                        "<t color='%1' font='PuristaBold' size='1.1'>[%2]</t><br/>" +
+                        "<t color='#FFFFFF' font='PuristaBold'>ПОЗЫВНОЙ: </t><t color='#00FF44'>%3</t><br/>" +
+                        "<t color='#555555'>--------------------------------</t><br/>" +
+                        "<t color='#FFFFFF'>ТИП: </t><t color='#00FF44'>%4</t><br/>" +
+                        "<t color='#FFFFFF'>РАДИУС ЗОНЫ: </t><t color='#00FF44'>%5 КМ</t><br/>" +
+                        "<t color='#FFFFFF'>ИЗЛУЧЕНИЕ: </t>%6<br/>" +
+                        "<t color='#555555'>--------------------------------</t><br/>" +
+                        "<t color='%7'>%8</t>",
+                        if (_newState) then { "#FFAA00" } else { "#00FF44" },
+                        if (_newState) then { "РЕЖИМ РАДИОМОЛЧАНИЯ" } else { "АКТИВНЫЙ ПОСТ РЛС" },
+                        _rName,
+                        getText (configFile >> "CfgVehicles" >> typeOf _rObj >> "displayName"),
+                        round (_rRange / 1000),
+                        _statusText,
+                        if (_newState) then { "#FFAA44" } else { "#888888" },
+                        if (_newState) then { "Передатчик обесточен! Сенсоры не излучают радиоволны, противорадиолокационные ракеты (ПРР) теряют захват цели." } else { "Повторный клик по станции или кнопка на панели переключает режим радиомолчания." }
+                    ];
+                    _ctrlInfo ctrlSetStructuredText parseText _html;
+                };
             };
         };
         playSoundUI ["\A3\ui_f\data\sound\RscButton\soundClick.wss", 0.5, 1];

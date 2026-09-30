@@ -222,6 +222,18 @@ class AIRDEF_Radar_Display
             action = "['CENTER_RADAR', 0] call AIRDEF_fnc_uiInteractions;";
         };
 
+        class BtnToggleEmission: AIRDEF_RscButton
+        {
+            idc = 78544;
+            x = "safezoneX + 0.008 * safezoneW";
+            y = "safezoneY + 0.500 * safezoneH";
+            w = "0.164 * safezoneW";
+            h = "0.038 * safezoneH";
+            colorText[] = {0.2, 1, 0.4, 1};
+            text = "[!] ИЗЛУЧЕНИЕ: ВКЛ";
+            action = "['TOGGLE', 'EMISSION'] call AIRDEF_fnc_uiInteractions;";
+        };
+
         // ================= RIGHT SIDEBAR =================
         class TargetHeader: AIRDEF_RscText
         {

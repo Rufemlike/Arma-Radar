@@ -5,15 +5,119 @@ class CfgPatches
         name = "Air Defender Radar System";
         author = "Arma Radar Team";
         url = "";
-        units[] = {};
+        units[] = {
+            "AIRDEF_RadarEmitter_West",
+            "AIRDEF_RadarEmitter_East",
+            "AIRDEF_RadarEmitter_Indep"
+        };
         weapons[] = {};
         requiredVersion = 1.98;
         requiredAddons[] = {
             "A3_UI_F",
             "A3_Data_F",
             "A3_Functions_F",
+            "A3_Static_F",
             "3DEN"
         };
+    };
+};
+
+// ================= NATIVE ACTIVE RADAR EMITTER VEHICLES =================
+// Used to provide active radar emission in the Arma 3 Jets DLC Sensor Overhaul for any object
+// (allows aircraft RWR to detect radar emission and anti-radiation missiles like AGM-88 HARM / Kh-31 to lock on)
+class CfgVehicles
+{
+    class LandVehicle;
+    class StaticWeapon: LandVehicle
+    {
+        class Components;
+    };
+    class StaticMGWeapon: StaticWeapon {};
+
+    class AIRDEF_RadarEmitter_Base: StaticMGWeapon
+    {
+        scope = 1;
+        displayName = "Air Defender Radar Emitter";
+        model = "\A3\Weapons_F\empty.p3d";
+        icon = "iconStaticObject";
+        picture = "pictureStaticObject";
+        vehicleClass = "Autonomous";
+        isUav = 1;
+        hasDriver = 0;
+        hasGunner = 0;
+        hasCommander = 0;
+        threat[] = {0, 0, 1};
+        cost = 1000000;
+        radarTarget = 1;
+        radarTargetSize = 2.5;
+        visualTarget = 0;
+        irTarget = 1;
+        irTargetSize = 1.5;
+        armor = 80;
+        class Components: Components
+        {
+            class SensorsManagerComponent
+            {
+                class Components
+                {
+                    class ActiveRadarSensorComponent
+                    {
+                        componentType = "ActiveRadarSensorComponent";
+                        class AirTarget
+                        {
+                            minRange = 50;
+                            maxRange = 60000;
+                            objectDistanceLimitCoef = -1;
+                            viewDistanceLimitCoef = -1;
+                        };
+                        class GroundTarget
+                        {
+                            minRange = 50;
+                            maxRange = 40000;
+                            objectDistanceLimitCoef = -1;
+                            viewDistanceLimitCoef = -1;
+                        };
+                        typeRecognitionDistance = 35000;
+                        angleRangeHorizontal = 360;
+                        angleRangeVertical = 100;
+                        groundNoiseDistanceCoef = -1;
+                        maxGroundNoiseDistance = -1;
+                        minSpeedThreshold = 0;
+                        maxSpeedThreshold = 0;
+                        aimDown = 0;
+                        minTrackableSpeed = -1e+010;
+                        maxTrackableSpeed = 1e+010;
+                        minTrackableATL = -1e+010;
+                        maxTrackableATL = 1e+010;
+                        allowsMarking = 1;
+                    };
+                };
+            };
+        };
+    };
+
+    class AIRDEF_RadarEmitter_West: AIRDEF_RadarEmitter_Base
+    {
+        scope = 1;
+        side = 1;
+        faction = "BLU_F";
+        crew = "B_UAV_AI";
+    };
+
+    class AIRDEF_RadarEmitter_East: AIRDEF_RadarEmitter_Base
+    {
+        scope = 1;
+        side = 0;
+        faction = "OPF_F";
+        crew = "O_UAV_AI";
+    };
+
+    class AIRDEF_RadarEmitter_Indep: AIRDEF_RadarEmitter_Base
+    {
+        scope = 1;
+        side = 2;
+        faction = "IND_F";
+        crew = "I_UAV_AI";
     };
 };
 
@@ -168,6 +272,15 @@ class Cfg3DEN
                         expression = "if (!(_value isEqualTo '')) then { _this setVariable ['AIRDEF_callsign', _value, true]; };";
                         defaultValue = "''";
                     };
+                    class AIRDEF_IsRadarBoard
+                    {
+                        displayName = "Сделать тактической доской РЛС";
+                        tooltip = "На поверхности этого объекта (доски, экрана, монитора) будет в 3D отображаться живая карта радара с лучом и метками";
+                        property = "AIRDEF_isRadarBoard_prop";
+                        control = "Checkbox";
+                        expression = "if (_value isEqualTo true || {_value isEqualTo 1}) then { _this setVariable ['AIRDEF_isRadarBoard', true, true]; if (hasInterface) then { [_this] call AIRDEF_fnc_radarBoard; }; } else { _this setVariable ['AIRDEF_isRadarBoard', false, true]; };";
+                        defaultValue = "false";
+                    };
                 };
             };
         };
@@ -184,7 +297,13 @@ class CfgRemoteExec
         class AIRDEF_fnc_commandPilot   { allowedTargets = 0; jip = 0; };
         class AIRDEF_fnc_commandAi      { allowedTargets = 0; jip = 0; };
         class AIRDEF_fnc_setupTerminal  { allowedTargets = 0; jip = 1; };
+        class AIRDEF_fnc_radarBoard     { allowedTargets = 0; jip = 1; };
         class systemChat                { allowedTargets = 0; jip = 0; };
+    };
+    class Commands
+    {
+        mode = 2;
+        class setVehicleRadar           { allowedTargets = 0; jip = 0; };
     };
 };
 

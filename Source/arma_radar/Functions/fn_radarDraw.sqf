@@ -51,60 +51,62 @@ if (count AIRDEF_activeRadars == 0) then {
     _x params ["_rObj", "_rPos", "_rRange", "_rName", "_phaseOffset"];
     private _rCenter2D = [_rPos select 0, _rPos select 1, 0];
     private _isSelectedStation = (_rObj isEqualTo AIRDEF_selectedRadar) || { count AIRDEF_activeRadars == 1 };
+    private _isEmissionOff = _rObj getVariable ["AIRDEF_radarEmissionOff", false];
     
     if (_isSelectedStation) then {
         // === DETAILED CRT RINGS FOR SELECTED ACTIVE RADAR ONLY ===
         if (AIRDEF_showRings) then {
+            private _ringColor100 = if (_isEmissionOff) then { [1, 0.55, 0.15, 0.55] } else { [0, 1, 0.35, 0.85] };
+            private _ringColor75  = if (_isEmissionOff) then { [1, 0.55, 0.15, 0.35] } else { [0, 0.85, 0.28, 0.50] };
+            private _ringColor50  = if (_isEmissionOff) then { [1, 0.55, 0.15, 0.35] } else { [0, 0.8, 0.25, 0.55] };
+            private _ringColor25  = if (_isEmissionOff) then { [1, 0.55, 0.15, 0.25] } else { [0, 0.65, 0.2, 0.45] };
+            private _crossColor   = if (_isEmissionOff) then { [1, 0.55, 0.15, 0.25] } else { [0, 0.7, 0.22, 0.35] };
+
             // Outer boundary (100%)
-            _map drawEllipse [_rCenter2D, _rRange, _rRange, 0, [0, 1, 0.35, 0.85], "#(rgb,8,8,3)color(0,0,0,0)"];
+            _map drawEllipse [_rCenter2D, _rRange, _rRange, 0, _ringColor100, "#(rgb,8,8,3)color(0,0,0,0)"];
             for "_a" from 0 to 350 step 10 do {
                 private _p1 = [(_rCenter2D select 0) + (sin _a) * _rRange, (_rCenter2D select 1) + (cos _a) * _rRange, 0];
                 private _p2 = [(_rCenter2D select 0) + (sin (_a + 10)) * _rRange, (_rCenter2D select 1) + (cos (_a + 10)) * _rRange, 0];
-                _map drawLine [_p1, _p2, [0, 1, 0.35, 0.9]];
+                _map drawLine [_p1, _p2, _ringColor100];
             };
 
             // 75% Range ring
-            _map drawEllipse [_rCenter2D, _rRange * 0.75, _rRange * 0.75, 0, [0, 0.85, 0.28, 0.50], "#(rgb,8,8,3)color(0,0,0,0)"];
+            _map drawEllipse [_rCenter2D, _rRange * 0.75, _rRange * 0.75, 0, _ringColor75, "#(rgb,8,8,3)color(0,0,0,0)"];
             for "_a" from 0 to 350 step 15 do {
                 private _p1 = [(_rCenter2D select 0) + (sin _a) * (_rRange * 0.75), (_rCenter2D select 1) + (cos _a) * (_rRange * 0.75), 0];
                 private _p2 = [(_rCenter2D select 0) + (sin (_a + 15)) * (_rRange * 0.75), (_rCenter2D select 1) + (cos (_a + 15)) * (_rRange * 0.75), 0];
-                _map drawLine [_p1, _p2, [0, 0.85, 0.28, 0.55]];
+                _map drawLine [_p1, _p2, _ringColor75];
             };
 
             // 50% Range ring
-            _map drawEllipse [_rCenter2D, _rRange * 0.50, _rRange * 0.50, 0, [0, 0.8, 0.25, 0.55], "#(rgb,8,8,3)color(0,0,0,0)"];
+            _map drawEllipse [_rCenter2D, _rRange * 0.50, _rRange * 0.50, 0, _ringColor50, "#(rgb,8,8,3)color(0,0,0,0)"];
             for "_a" from 0 to 350 step 15 do {
                 private _p1 = [(_rCenter2D select 0) + (sin _a) * (_rRange * 0.5), (_rCenter2D select 1) + (cos _a) * (_rRange * 0.5), 0];
                 private _p2 = [(_rCenter2D select 0) + (sin (_a + 15)) * (_rRange * 0.5), (_rCenter2D select 1) + (cos (_a + 15)) * (_rRange * 0.5), 0];
-                _map drawLine [_p1, _p2, [0, 0.8, 0.25, 0.6]];
+                _map drawLine [_p1, _p2, _ringColor50];
             };
 
             // 25% Range ring
-            _map drawEllipse [_rCenter2D, _rRange * 0.25, _rRange * 0.25, 0, [0, 0.65, 0.2, 0.45], "#(rgb,8,8,3)color(0,0,0,0)"];
+            _map drawEllipse [_rCenter2D, _rRange * 0.25, _rRange * 0.25, 0, _ringColor25, "#(rgb,8,8,3)color(0,0,0,0)"];
             for "_a" from 0 to 350 step 20 do {
                 private _p1 = [(_rCenter2D select 0) + (sin _a) * (_rRange * 0.25), (_rCenter2D select 1) + (cos _a) * (_rRange * 0.25), 0];
                 private _p2 = [(_rCenter2D select 0) + (sin (_a + 20)) * (_rRange * 0.25), (_rCenter2D select 1) + (cos (_a + 20)) * (_rRange * 0.25), 0];
-                _map drawLine [_p1, _p2, [0, 0.65, 0.2, 0.50]];
+                _map drawLine [_p1, _p2, _ringColor25];
             };
 
-            // 10% Range ring (close-in reference)
-            _map drawEllipse [_rCenter2D, _rRange * 0.10, _rRange * 0.10, 0, [0, 0.55, 0.18, 0.40], "#(rgb,8,8,3)color(0,0,0,0)"];
-            for "_a" from 0 to 350 step 30 do {
-                private _p1 = [(_rCenter2D select 0) + (sin _a) * (_rRange * 0.1), (_rCenter2D select 1) + (cos _a) * (_rRange * 0.1), 0];
-                private _p2 = [(_rCenter2D select 0) + (sin (_a + 30)) * (_rRange * 0.1), (_rCenter2D select 1) + (cos (_a + 30)) * (_rRange * 0.1), 0];
-                _map drawLine [_p1, _p2, [0, 0.55, 0.18, 0.45]];
-            };
+            // 10% Range ring
+            _map drawEllipse [_rCenter2D, _rRange * 0.10, _rRange * 0.10, 0, _crossColor, "#(rgb,8,8,3)color(0,0,0,0)"];
             
             // Cardinal crosshairs (N-S, E-W)
             _map drawLine [
                 [(_rCenter2D select 0) - _rRange, _rCenter2D select 1, 0],
                 [(_rCenter2D select 0) + _rRange, _rCenter2D select 1, 0],
-                [0, 0.7, 0.22, 0.35]
+                _crossColor
             ];
             _map drawLine [
                 [_rCenter2D select 0, (_rCenter2D select 1) - _rRange, 0],
                 [_rCenter2D select 0, (_rCenter2D select 1) + _rRange, 0],
-                [0, 0.7, 0.22, 0.35]
+                _crossColor
             ];
             
             // Range distance labels along the North axis
@@ -114,7 +116,7 @@ if (count AIRDEF_activeRadars == 0) then {
                 private _tickPos = [(_rCenter2D select 0), (_rCenter2D select 1) + (_rRange * _distFraction), 0];
                 _map drawIcon [
                     "#(argb,8,8,3)color(0,0,0,0)",
-                    [0, 0.85, 0.25, 0.75],
+                    if (_isEmissionOff) then { [1, 0.65, 0.2, 0.65] } else { [0, 0.85, 0.25, 0.75] },
                     _tickPos,
                     0, 0, 0,
                     format ["%1 КМ", _distKm],
@@ -126,12 +128,19 @@ if (count AIRDEF_activeRadars == 0) then {
             } forEach [0.25, 0.50, 0.75, 1.0];
             
             private _labelPos = [(_rCenter2D select 0), (_rCenter2D select 1) + _rRange + 400, 0];
+            private _labelText = if (_isEmissionOff) then {
+                format ["%1 (ЗОНА: %2 КМ) [РАДИОМОЛЧАНИЕ / ВЫКЛЮЧЕН]", _rName, round (_rRange / 1000)]
+            } else {
+                format ["%1 (ЗОНА: %2 КМ) [АКТИВЕН]", _rName, round (_rRange / 1000)]
+            };
+            private _labelColor = if (_isEmissionOff) then { [1, 0.6, 0.2, 0.95] } else { [0.2, 1, 0.4, 0.95] };
+            
             _map drawIcon [
                 "#(argb,8,8,3)color(0,0,0,0)",
-                [0.2, 1, 0.4, 0.95],
+                _labelColor,
                 _labelPos,
                 0, 0, 0,
-                format ["%1 (ЗОНА: %2 КМ) [АКТИВЕН]", _rName, round (_rRange / 1000)],
+                _labelText,
                 0,
                 0.028,
                 "EtelkaMonospaceProBold",
@@ -139,8 +148,8 @@ if (count AIRDEF_activeRadars == 0) then {
             ];
         };
         
-        // Rotating sweep beam for selected radar only
-        if (AIRDEF_showSweep) then {
+        // Rotating sweep beam for selected radar only (active only when emission is ON)
+        if (AIRDEF_showSweep && !_isEmissionOff) then {
             private _sweepAngle = ((time * AIRDEF_sweepSpeed) + _phaseOffset) % 360;
             private _endPos = [
                 (_rCenter2D select 0) + (sin _sweepAngle) * _rRange,
@@ -163,14 +172,23 @@ if (count AIRDEF_activeRadars == 0) then {
     } else {
         // === SECONDARY RADAR STATION: CLEAN FAINT OUTLINE ONLY ===
         if (AIRDEF_showRings) then {
-            _map drawEllipse [_rCenter2D, _rRange, _rRange, 0, [0, 0.7, 0.25, 0.25], ""];
+            private _secColor = if (_isEmissionOff) then { [0.8, 0.5, 0.1, 0.20] } else { [0, 0.7, 0.25, 0.25] };
+            _map drawEllipse [_rCenter2D, _rRange, _rRange, 0, _secColor, ""];
         };
     };
     
     // Station icon & label
     if (AIRDEF_filter in ["ALL", "FRIENDLY", "DATALINK"]) then {
-        private _iconColor = if (_isSelectedStation) then { [0.2, 1, 0.4, 0.95] } else { [0.1, 0.65, 0.25, 0.75] };
-        private _iconText  = if (_isSelectedStation) then { format ["[*] %1", _rName] } else { format ["[РЛС] %1", _rName] };
+        private _iconColor = if (_isEmissionOff) then {
+            [1, 0.6, 0.2, 0.95]
+        } else {
+            if (_isSelectedStation) then { [0.2, 1, 0.4, 0.95] } else { [0.1, 0.65, 0.25, 0.75] }
+        };
+        private _iconText = if (_isEmissionOff) then {
+            format ["[РАДИОМОЛЧАНИЕ] %1", _rName]
+        } else {
+            if (_isSelectedStation) then { format ["[*] %1", _rName] } else { format ["[РЛС] %1", _rName] }
+        };
         _map drawIcon [
             "\A3\ui_f\data\map\markers\nato\b_installation.paa",
             _iconColor,
@@ -178,6 +196,11 @@ if (count AIRDEF_activeRadars == 0) then {
             22, 22, 0,
             _iconText,
             0,
+            0.026,
+            "EtelkaMonospaceProBold",
+            "right"
+        ];
+    };
             0.026,
             "EtelkaMonospaceProBold",
             "right"
@@ -346,6 +369,13 @@ if (_isRtbPending) then {
 
 
 // ================= 3. TARGET TRACKS & CONTACTS =================
+private _lastFrameTime = missionNamespace getVariable ["AIRDEF_lastDrawFrameTime", time - 0.016];
+private _frameDelta = (time - _lastFrameTime) max 0.001 min 1.0;
+missionNamespace setVariable ["AIRDEF_lastDrawFrameTime", time];
+
+private _sweepSpeed = missionNamespace getVariable ["AIRDEF_sweepSpeed", 60];
+private _revPeriod = (360 / (_sweepSpeed max 10)) max 4.0;
+
 {
     _x params [
         "_id", "_obj", "_pos", "_timeSeen", "_speedKmh", "_altM", "_dir", "_name", "_side", "_isMissile", "_isDataLink"
@@ -363,19 +393,132 @@ if (_isRtbPending) then {
     };
 
     if (_displayTarget) then {
-        private _drawPos = [_pos select 0, _pos select 1, 0];
+        private _realPosASL = if (!isNull _obj) then { getPosASL _obj } else { _pos };
+        
+        // 1. Check if ANY active friendly radar swept across this target in the last frame
+        private _wasSwept = false;
+        {
+            _x params ["_rObj", "_rPos", "_rRange", "_rName", "_phaseOffset"];
+            if (!(_rObj getVariable ["AIRDEF_radarEmissionOff", false]) && { (_realPosASL distance2D _rPos) <= _rRange }) then {
+                private _currSweep = ((time * _sweepSpeed) + _phaseOffset) % 360;
+                private _prevSweep = (((time - _frameDelta) * _sweepSpeed) + _phaseOffset) % 360;
+                private _deltaAngle = (_currSweep - _prevSweep + 360) % 360;
+                
+                if (_deltaAngle > 0 && _deltaAngle < 90) then {
+                    private _bearing = _rPos getDir _realPosASL;
+                    if (((_bearing - _prevSweep + 360) % 360) <= _deltaAngle) then {
+                        _wasSwept = true;
+                    };
+                };
+            };
+            if (_wasSwept) exitWith {};
+        } forEach AIRDEF_activeRadars;
 
-        // 3.1. MISSILE TRACK
+        // 2. Retrieve persistent plot data: [_drawnPos, _drawnDir, _drawnSpeed, _drawnAlt, _lastSweepTime, _trailHistory]
+        private _plotData = if (!isNull _obj) then { _obj getVariable ["AIRDEF_plotData", []] } else { [] };
+        private _drawnPos = _realPosASL;
+        private _drawnDir = if (!isNull _obj) then { getDir _obj } else { _dir };
+        private _drawnSpeed = if (!isNull _obj) then { round (speed _obj) } else { _speedKmh };
+        private _drawnAlt = round (_realPosASL select 2);
+        private _lastSweepTime = time;
+        private _trailHistory = [];
+
+        if (count _plotData > 0) then {
+            _plotData params ["_pPos", "_pDir", "_pSpd", "_pAlt", "_pSwTime", "_pHist"];
+            _drawnPos = _pPos;
+            _drawnDir = _pDir;
+            _drawnSpeed = _pSpd;
+            _drawnAlt = _pAlt;
+            _lastSweepTime = _pSwTime;
+            _trailHistory = _pHist;
+        };
+
+        if (_isFriendlyTrack && !_isMissile) then {
+            // Friendly aircraft transmit live GPS coordinates via IFF transponder & DataLink
+            _drawnPos = _realPosASL;
+            _drawnDir = if (!isNull _obj) then { getDir _obj } else { _dir };
+            _drawnSpeed = if (!isNull _obj) then { round (speed _obj) } else { _speedKmh };
+            _drawnAlt = round (_realPosASL select 2);
+            if (_wasSwept) then {
+                _lastSweepTime = time;
+            };
+            if (!isNull _obj) then {
+                _obj setVariable ["AIRDEF_plotData", [_drawnPos, _drawnDir, _drawnSpeed, _drawnAlt, _lastSweepTime, _trailHistory], false];
+            };
+        } else {
+            // Hostiles & missiles are detected solely by primary radar pulses.
+            // Position updates ONLY when rotating radar beam sweeps across azimuth!
+            if (_wasSwept || count _plotData == 0) then {
+                if (_drawnPos distance2D _realPosASL > 30) then {
+                    _trailHistory pushBack [_drawnPos, _drawnDir, _lastSweepTime];
+                    if (count _trailHistory > 4) then {
+                        _trailHistory deleteAt 0;
+                    };
+                };
+                _drawnPos = _realPosASL;
+                _drawnDir = if (!isNull _obj) then { getDir _obj } else { _dir };
+                _drawnSpeed = if (!isNull _obj) then { round (speed _obj) } else { _speedKmh };
+                _drawnAlt = round (_realPosASL select 2);
+                _lastSweepTime = time;
+
+                if (!isNull _obj) then {
+                    _obj setVariable ["AIRDEF_plotData", [_drawnPos, _drawnDir, _drawnSpeed, _drawnAlt, _lastSweepTime, _trailHistory], false];
+                };
+            };
+        };
+
+        // 3. Phosphor Persistence & Decay Calculation
+        private _timeSinceSweep = (time - _lastSweepTime) max 0;
+        private _phosphorAlpha = if (_timeSinceSweep <= _revPeriod) then {
+            // Decay from 1.0 down to 0.40 over one antenna revolution
+            (1.0 - ((_timeSinceSweep / _revPeriod) * 0.60)) max 0.40
+        } else {
+            // Target lost / shielded behind terrain: gradual fadeout into darkness
+            (0.40 - (((_timeSinceSweep - _revPeriod) / 12) * 0.40)) max 0.05
+        };
+
+        private _drawPos2D = [_drawnPos select 0, _drawnPos select 1, 0];
+
+        // 4. Draw Phosphor Trail (Historical breadcrumbs from previous sweeps)
+        if (count _trailHistory > 0 && !_isFriendlyTrack) then {
+            private _trailCount = count _trailHistory;
+            for "_t" from 0 to (_trailCount - 1) do {
+                private _histEntry = _trailHistory select _t;
+                _histEntry params ["_hPos", "_hDir", "_hTime"];
+                private _hAge = time - _hTime;
+                if (_hAge < 35) then {
+                    private _stepIdx = (_trailCount - 1) - _t; // 0 = previous sweep, 1 = 2 sweeps ago...
+                    private _histAlpha = (0.50 - (_stepIdx * 0.11)) max 0.08;
+                    private _dotSize = (10 - (_stepIdx * 2)) max 4;
+                    private _dotColor = if (_isMissile) then {
+                        [1, 0.35, 0.15, _histAlpha]
+                    } else {
+                        if (_isDataLink) then { [0.2, 0.7, 0.9, _histAlpha] } else { [1, 0.4, 0.25, _histAlpha] }
+                    };
+                    _map drawIcon [
+                        "\A3\ui_f\data\map\markers\military\dot_CA.paa",
+                        _dotColor,
+                        [_hPos select 0, _hPos select 1, 0],
+                        _dotSize, _dotSize, 0,
+                        "", 0, 0, "", "center"
+                    ];
+                };
+            };
+        };
+
+        // 5. Draw Primary Target Icon
         if (_isMissile) then {
-            private _pulseAlpha = 0.5 + 0.5 * abs (sin (time * 10));
-            private _missileColor = [1, 0.2, 0.1, _pulseAlpha];
+            // 5.1. MISSILE TRACK
+            private _isFlash = (_timeSinceSweep < 0.25);
+            private _mColor = [1, 0.2, 0.1, if (_isFlash) then { 1.0 } else { _phosphorAlpha }];
+            private _mSize = if (_isFlash) then { 26 } else { 22 };
 
             _map drawIcon [
                 "\A3\ui_f\data\map\markers\nato\o_art.paa",
-                _missileColor,
-                _drawPos,
-                24, 24, _dir,
-                format ["!РАКЕТА! %1 KM/H | H:%2M", _speedKmh, _altM],
+                _mColor,
+                _drawPos2D,
+                _mSize, _mSize, _drawnDir,
+                format ["!РАКЕТА! %1 KM/H | H:%2M", _drawnSpeed, _drawnAlt],
                 0,
                 0.030,
                 "EtelkaMonospaceProBold",
@@ -383,64 +526,66 @@ if (_isRtbPending) then {
             ];
 
             if (AIRDEF_showVectors) then {
-                private _vecLen = (_speedKmh / 3.6) * 15;
-                private _vecEnd = [(_drawPos select 0) + (sin _dir) * _vecLen, (_drawPos select 1) + (cos _dir) * _vecLen, 0];
-                _map drawLine [_drawPos, _vecEnd, [1, 0.2, 0.1, 0.75]];
+                private _vecLen = (_drawnSpeed / 3.6) * 15;
+                private _vecEnd = [(_drawPos2D select 0) + (sin _drawnDir) * _vecLen, (_drawPos2D select 1) + (cos _drawnDir) * _vecLen, 0];
+                _map drawLine [_drawPos2D, _vecEnd, [1, 0.2, 0.1, 0.75]];
             };
         } else {
-            // 3.2. FRIENDLY AIRCRAFT (IFF)
             if (_isFriendlyTrack) then {
+                // 5.2. FRIENDLY AIRCRAFT (IFF & DATALINK)
                 private _isRotary = if (!isNull _obj) then { _obj isKindOf "Helicopter" } else { false };
                 private _iconPath = if (_isRotary) then { "\A3\ui_f\data\map\markers\nato\b_air.paa" } else { "\A3\ui_f\data\map\markers\nato\b_plane.paa" };
-                private _fColor = [0.2, 1, 0.45, 0.95];
+                
+                // Friendly pulses to 1.0 on sweep, otherwise stays at a solid 0.88
+                private _fAlpha = if (_timeSinceSweep < 0.3) then { 1.0 } else { 0.88 };
+                private _fColor = [0.2, 1, 0.45, _fAlpha];
 
                 _map drawIcon [
                     _iconPath,
                     _fColor,
-                    _drawPos,
-                    24, 24, _dir,
-                    format ["%1 [H:%2 SPD:%3]", _name, _altM, _speedKmh],
+                    _drawPos2D,
+                    24, 24, _drawnDir,
+                    format ["%1 [H:%2 SPD:%3]", _name, _drawnAlt, _drawnSpeed],
                     0,
                     0.028,
                     "EtelkaMonospacePro",
                     "right"
                 ];
 
-                if (AIRDEF_showVectors && _speedKmh > 20) then {
-                    private _vecLen = (_speedKmh / 3.6) * 30;
-                    private _vecEnd = [(_drawPos select 0) + (sin _dir) * _vecLen, (_drawPos select 1) + (cos _dir) * _vecLen, 0];
-                    _map drawLine [_drawPos, _vecEnd, [0.2, 1, 0.45, 0.6]];
+                if (AIRDEF_showVectors && _drawnSpeed > 20) then {
+                    private _vecLen = (_drawnSpeed / 3.6) * 30;
+                    private _vecEnd = [(_drawPos2D select 0) + (sin _drawnDir) * _vecLen, (_drawPos2D select 1) + (cos _drawnDir) * _vecLen, 0];
+                    _map drawLine [_drawPos2D, _vecEnd, [0.2, 1, 0.45, 0.6]];
                 };
             } else {
-                // 3.3. HOSTILE / UNKNOWN / DATALINK CONTACT
-                private _decayAge = time - _timeSeen;
-                private _alpha = (1 - (_decayAge / 10)) max 0.25;
-                
+                // 5.3. HOSTILE / UNKNOWN CONTACT (PRIMARY RADAR)
+                private _isFlash = (_timeSinceSweep < 0.25);
                 private _hColor = if (_isDataLink) then {
-                    [0.2, 0.85, 1, _alpha]
+                    [0.2, 0.85, 1, if (_isFlash) then { 1.0 } else { _phosphorAlpha }]
                 } else {
-                    [1, 0.3, 0.2, _alpha]
+                    [1, 0.3, 0.2, if (_isFlash) then { 1.0 } else { _phosphorAlpha }]
                 };
 
                 private _iconPath = "\A3\ui_f\data\map\markers\nato\o_plane.paa";
                 private _prefix = if (_isDataLink) then { "[DL]" } else { "[TGT]" };
+                private _hSize = if (_isFlash) then { 25 } else { 22 };
 
                 _map drawIcon [
                     _iconPath,
                     _hColor,
-                    _drawPos,
-                    22, 22, _dir,
-                    format ["%1 %2 [H:%3 SPD:%4]", _prefix, _name, _altM, _speedKmh],
+                    _drawPos2D,
+                    _hSize, _hSize, _drawnDir,
+                    format ["%1 %2 [H:%3 SPD:%4]", _prefix, _name, _drawnAlt, _drawnSpeed],
                     0,
                     0.027,
                     "EtelkaMonospacePro",
                     "right"
                 ];
 
-                if (AIRDEF_showVectors && _speedKmh > 20) then {
-                    private _vecLen = (_speedKmh / 3.6) * 20;
-                    private _vecEnd = [(_drawPos select 0) + (sin _dir) * _vecLen, (_drawPos select 1) + (cos _dir) * _vecLen, 0];
-                    _map drawLine [_drawPos, _vecEnd, [_hColor select 0, _hColor select 1, _hColor select 2, 0.45]];
+                if (AIRDEF_showVectors && _drawnSpeed > 20) then {
+                    private _vecLen = (_drawnSpeed / 3.6) * 20;
+                    private _vecEnd = [(_drawPos2D select 0) + (sin _drawnDir) * _vecLen, (_drawPos2D select 1) + (cos _drawnDir) * _vecLen, 0];
+                    _map drawLine [_drawPos2D, _vecEnd, [_hColor select 0, _hColor select 1, _hColor select 2, 0.45]];
                 };
             };
         };
@@ -457,6 +602,11 @@ if (!isNull AIRDEF_selectedUnit && { alive AIRDEF_selectedUnit }) then {
 
 if (!isNull AIRDEF_targetUnit && { alive AIRDEF_targetUnit }) then {
     private _tgtPos = getPosASL AIRDEF_targetUnit;
+    private _tgtPlot = AIRDEF_targetUnit getVariable ["AIRDEF_plotData", []];
+    if (count _tgtPlot > 0) then {
+        _tgtPos = _tgtPlot select 0;
+    };
+
     _map drawEllipse [_tgtPos, 700, 700, 0, [1, 0.2, 0.1, 0.9], ""];
     _map drawEllipse [_tgtPos, 850, 850, 0, [1, 0.2, 0.1, 0.5], ""];
 

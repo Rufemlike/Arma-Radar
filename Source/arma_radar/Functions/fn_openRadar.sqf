@@ -116,6 +116,14 @@ _map ctrlAddEventHandler ["MouseButtonDown", {
                 _threatColor, _threatText, count AIRDEF_activeRadars, _allTracks, _friendlies, _hostiles, _dataLink, _missiles
             ];
         };
+
+        // Update emission button state
+        private _btnEmission = _display displayCtrl 78544;
+        if (!isNull _btnEmission && { !isNull AIRDEF_selectedRadar }) then {
+            private _isOff = AIRDEF_selectedRadar getVariable ["AIRDEF_radarEmissionOff", false];
+            _btnEmission ctrlSetText (if (_isOff) then { "[!] РАДИОМОЛЧАНИЕ" } else { "[!] ИЗЛУЧЕНИЕ: ВКЛ" });
+            _btnEmission ctrlSetTextColor (if (_isOff) then { [1, 0.3, 0.2, 1] } else { [0.2, 1, 0.4, 1] });
+        };
         
         uiSleep 0.1;
     };

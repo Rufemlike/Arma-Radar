@@ -113,23 +113,7 @@ if (_onlyCustomRadars) then {
     };
 };
 
-// Activate autonomous static weapons and sensors
-{
-    private _veh = _x;
-    if (count (crew _veh) == 0 && { unitIsUav _veh || (_veh isKindOf "StaticWeapon") }) then {
-        createVehicleCrew _veh;
-        _veh setAutonomous true;
-    };
-    if (_veh isKindOf "AllVehicles") then {
-        if !(isVehicleRadarOn _veh isEqualTo true) then {
-            _veh setVehicleRadar 1;
-        };
-        _veh setVehicleReceiveRemoteTargets true;
-        _veh setVehicleReportRemoteTargets true;
-    };
-} forEach _radarCandidates;
-
-// Categorize radars (Friendly vs Hostile) and apply individual ranges
+// Categorize radars (Friendly vs Hostile), activate sensors/emitters and apply individual ranges
 {
     private _rObj = _x;
     if (alive _rObj && { damage _rObj < 0.85 }) then {
@@ -177,6 +161,69 @@ if (_onlyCustomRadars) then {
 
         private _isFriendly = (_rSide == _userSide) || { [_rSide, _userSide] call BIS_fnc_sideIsFriendly };
 
+        // 1.5. NATIVE ENGINE ACTIVE RADAR EMISSION & ANTI-RADIATION MISSILE LOCKING
+        // Allows aircraft RWR to detect radar emissions and lock anti-radiation missiles (AGM-88 HARM, Kh-31P)
+        private _isEmissionOff = _rObj getVariable ["AIRDEF_radarEmissionOff", false];
+
+        if (_rObj isKindOf "AllVehicles") then {
+            if (count (crew _rObj) == 0 && { unitIsUav _rObj || (_rObj isKindOf "StaticWeapon") }) then {
+                createVehicleCrew _rObj;
+                _rObj setAutonomous true;
+            };
+            private _targetRadarState = if (_isEmissionOff) then { 0 } else { 1 };
+            if !(isVehicleRadarOn _rObj isEqualTo (_targetRadarState == 1)) then {
+                _rObj setVehicleRadar _targetRadarState;
+            };
+            _rObj setVehicleReceiveRemoteTargets true;
+            _rObj setVehicleReportRemoteTargets true;
+        } else {
+            // Static building, tower, dome, or prop (e.g. Land_Radar_F, Land_Antenna_F, or custom object)
+            // Attach a hidden autonomous radar emitter with ActiveRadarSensorComponent
+            if (isServer || !isMultiplayer) then {
+                private _emitter = _rObj getVariable ["AIRDEF_radarEmitter", objNull];
+                if (isNull _emitter || { !alive _emitter }) then {
+                    private _emitterClass = switch (_rSide) do {
+                        case east:        { "AIRDEF_RadarEmitter_East" };
+                        case independent: { "AIRDEF_RadarEmitter_Indep" };
+                        default           { "AIRDEF_RadarEmitter_West" };
+                    };
+                    _emitter = createVehicle [_emitterClass, getPosATL _rObj, [], 0, "CAN_COLLIDE"];
+                    _emitter attachTo [_rObj, [0, 0, 2]];
+                    createVehicleCrew _emitter;
+                    _emitter setAutonomous true;
+                    _emitter setVehicleRadar (if (_isEmissionOff) then { 0 } else { 1 });
+                    _emitter setVehicleReceiveRemoteTargets true;
+                    _emitter setVehicleReportRemoteTargets true;
+                    
+                    _rObj setVariable ["AIRDEF_radarEmitter", _emitter, true];
+                    _emitter setVariable ["AIRDEF_parentRadar", _rObj, true];
+                    
+                    // Two-way destruction synchronization:
+                    // Missile hitting emitter destroys parent building; destroying building destroys emitter
+                    _emitter addEventHandler ["Killed", {
+                        params ["_unit"];
+                        private _p = _unit getVariable ["AIRDEF_parentRadar", objNull];
+                        if (!isNull _p && { damage _p < 0.85 }) then { _p setDamage 1; };
+                    }];
+                    _emitter addEventHandler ["Hit", {
+                        params ["_unit", "_source", "_damage", "_instigator"];
+                        private _p = _unit getVariable ["AIRDEF_parentRadar", objNull];
+                        if (!isNull _p) then { _p setDamage ((damage _p) max _damage); };
+                    }];
+                    _rObj addEventHandler ["Killed", {
+                        params ["_unit"];
+                        private _em = _unit getVariable ["AIRDEF_radarEmitter", objNull];
+                        if (!isNull _em) then { deleteVehicle _em; };
+                    }];
+                } else {
+                    private _targetRadarState = if (_isEmissionOff) then { 0 } else { 1 };
+                    if !(isVehicleRadarOn _emitter isEqualTo (_targetRadarState == 1)) then {
+                        _emitter setVehicleRadar _targetRadarState;
+                    };
+                };
+            };
+        };
+
         // 2. Determine Individual Range
         private _customRange = _rObj getVariable ["AIRDEF_radarRange", -1];
         private _baseRange = if (_customRange > 0) then {
@@ -217,6 +264,19 @@ if (_onlyCustomRadars) then {
         } else {
             _foundHostile pushBack [_rObj, _rPos, _rRange, _rName, _phase];
         };
+    } else {
+        // Radar destroyed or offline: cleanup emitter and turn off active radar
+        if (_rObj isKindOf "AllVehicles") then {
+            if (isVehicleRadarOn _rObj isEqualTo true) then {
+                _rObj setVehicleRadar 0;
+            };
+        } else {
+            private _em = _rObj getVariable ["AIRDEF_radarEmitter", objNull];
+            if (!isNull _em) then {
+                deleteVehicle _em;
+                _rObj setVariable ["AIRDEF_radarEmitter", objNull, true];
+            };
+        };
     };
 } forEach _radarCandidates;
 
@@ -254,7 +314,6 @@ private _activeMarkerIds = [];
         createMarkerLocal [_ringMrk, _rPos];
         _ringMrk setMarkerShapeLocal "ELLIPSE";
         _ringMrk setMarkerBrushLocal "Border";
-        _ringMrk setMarkerColorLocal "ColorWEST";
     };
     _ringMrk setMarkerPosLocal _rPos;
     _ringMrk setMarkerSizeLocal [_rRange, _rRange];
@@ -263,10 +322,19 @@ private _activeMarkerIds = [];
     if (getMarkerColor _iconMrk == "") then {
         createMarkerLocal [_iconMrk, _rPos];
         _iconMrk setMarkerTypeLocal "b_installation";
-        _iconMrk setMarkerColorLocal "ColorWEST";
     };
     _iconMrk setMarkerPosLocal _rPos;
-    _iconMrk setMarkerTextLocal (format ["%1 (%2 КМ)", _rName, round (_rRange / 1000)]);
+
+    private _isEmissionOff = _rObj getVariable ["AIRDEF_radarEmissionOff", false];
+    if (_isEmissionOff) then {
+        _ringMrk setMarkerColorLocal "ColorGrey";
+        _iconMrk setMarkerColorLocal "ColorGrey";
+        _iconMrk setMarkerTextLocal (format ["%1 [ТИХИЙ] (%2 КМ)", _rName, round (_rRange / 1000)]);
+    } else {
+        _ringMrk setMarkerColorLocal "ColorWEST";
+        _iconMrk setMarkerColorLocal "ColorWEST";
+        _iconMrk setMarkerTextLocal (format ["%1 (%2 КМ)", _rName, round (_rRange / 1000)]);
+    };
 } forEach _foundFriendly;
 
 {
@@ -379,14 +447,16 @@ private _untrackedAir = _allAir select { !(_x in _trackedObjects) };
             
             {
                 _x params ["_rObj", "_rPos", "_rRange"];
-                private _dist = _tgtPos distance2D _rPos;
-                private _effectiveRange = _rRange * (_rcs max 0.25 min 1.5);
-                
-                if (_dist <= _effectiveRange) then {
-                    // Check terrain obstruction
-                    private _sensorPos = [_rPos select 0, _rPos select 1, (_rPos select 2) + 8];
-                    if !(terrainIntersectASL [_sensorPos, _tgtPos]) then {
-                        _detected = true;
+                if !(_rObj getVariable ["AIRDEF_radarEmissionOff", false]) then {
+                    private _dist = _tgtPos distance2D _rPos;
+                    private _effectiveRange = _rRange * (_rcs max 0.25 min 1.5);
+                    
+                    if (_dist <= _effectiveRange) then {
+                        // Check terrain obstruction
+                        private _sensorPos = [_rPos select 0, _rPos select 1, (_rPos select 2) + 8];
+                        if !(terrainIntersectASL [_sensorPos, _tgtPos]) then {
+                            _detected = true;
+                        };
                     };
                 };
                 if (_detected) exitWith {};
@@ -402,6 +472,7 @@ private _untrackedAir = _allAir select { !(_x in _trackedObjects) };
                 if (_type == "") then { _type = getText (configFile >> "CfgVehicles" >> typeOf _tgt >> "displayName"); };
                 
                 private _tgtSide = side _tgt;
+                private _isFriendlyTgt = (_tgtSide == _userSide || [_userSide, _tgtSide] call BIS_fnc_sideIsFriendly);
                 
                 _newTracks pushBack [
                     netId _tgt,
@@ -415,8 +486,8 @@ private _untrackedAir = _allAir select { !(_x in _trackedObjects) };
                     _tgtSide,
                     false, // isMissile
                     false, // isDataLink
-                    fuel _tgt,
-                    damage _tgt
+                    if (_isFriendlyTgt) then { fuel _tgt } else { -1 },
+                    if (_isFriendlyTgt) then { damage _tgt } else { -1 }
                 ];
                 _trackedObjects pushBack _tgt;
             };
@@ -440,7 +511,7 @@ private _hadNewMissile = false;
             private _inRadarCoverage = false;
             {
                 _x params ["_rObj", "_rPos", "_rRange"];
-                if ((_mPos distance2D _rPos) <= _rRange) exitWith {
+                if (!(_rObj getVariable ["AIRDEF_radarEmissionOff", false]) && { (_mPos distance2D _rPos) <= _rRange }) exitWith {
                     _inRadarCoverage = true;
                 };
             } forEach AIRDEF_activeRadars;
@@ -471,8 +542,8 @@ private _hadNewMissile = false;
     };
 } forEach _missiles;
 
-if (_hadNewMissile && { (time - (missionNamespace getVariable ["AIRDEF_lastAlertSound", 0])) > 4 }) then {
-    playSound "Alarm";
+if (_hadNewMissile && { !isNull (findDisplay 78500) } && { (time - (missionNamespace getVariable ["AIRDEF_lastAlertSound", 0])) > 6 }) then {
+    playSoundUI ["\A3\ui_f\data\sound\CfgNotifications\default.wss", 1.0, 1.3];
     AIRDEF_lastAlertSound = time;
 };
 

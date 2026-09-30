@@ -16,6 +16,7 @@ class CfgFunctions
             class commandPilot {};
             class uiInteractions {};
             class setupTerminal {};
+            class radarBoard {};
         };
     };
 };
