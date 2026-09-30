@@ -1,0 +1,12 @@
+name = "Air Defender Radar (GCI / IADS)";
+picture = "picture.jpg";
+actionName = "Radar System";
+action = "";
+description = "Air Defender Radar - Tactical Air Traffic Control, GCI, Air Defense and DataLink Radar Station for Arma 3.";
+logo = "logo.jpg";
+logoOver = "logo.jpg";
+tooltip = "Air Defender Radar";
+tooltipOwned = "Air Defender Radar";
+overview = "Authentic green CRT vector radar (PPI/GCI) for Air Traffic Controllers and Air Defense Operators. Features multi-radar network, friendly IFF tracking, native Jets DLC DataLink integration, missile detection, and multiplayer-optimized Drongo-style intercept vectoring.";
+author = "Arma Radar Team";
+overviewPicture = "picture.jpg";
