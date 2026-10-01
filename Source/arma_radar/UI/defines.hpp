@@ -124,7 +124,7 @@ class AIRDEF_RscMapControl: RscMapControl
     showMarkers = 0;
     showTasks = 0;
     showCountourInterval = 0;
-    font = "EtelkaMonospacePro";
+    font = "RobotoCondensed";
     sizeEx = 0.03;
     scaleMin = 0.001;
     scaleMax = 1.0;
@@ -160,18 +160,20 @@ class AIRDEF_RscMapControl: RscMapControl
     colorInactive[] = {0, 0.2, 0.08, 0.5};
     colorOutside[] = {0, 0, 0, 1};
     
-    fontLabel = "PuristaMedium";
+    fontLabel = "RobotoCondensed";
     sizeExLabel = 0.022;
-    fontGrid = "EtelkaMonospacePro";
+    fontGrid = "RobotoCondensed";
     sizeExGrid = 0.020;
-    fontUnits = "PuristaMedium";
+    fontUnits = "RobotoCondensed";
     sizeExUnits = 0.022;
-    fontNames = "PuristaMedium";
+    fontNames = "RobotoCondensed";
     sizeExNames = 0.022;
-    fontInfo = "PuristaMedium";
+    fontInfo = "RobotoCondensed";
     sizeExInfo = 0.020;
-    fontLevel = "PuristaMedium";
+    fontLevel = "RobotoCondensed";
     sizeExLevel = 0.020;
+    fontPlayer = "RobotoCondensed";
+    sizeExPlayer = 0.020;
     
     maxSatelliteAlpha = 0;
 };

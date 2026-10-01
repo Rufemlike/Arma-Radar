@@ -31,10 +31,11 @@ class CfgVehicles
     class StaticWeapon: LandVehicle
     {
         class Components;
+        class Turrets;
+        class HitPoints;
     };
-    class StaticMGWeapon: StaticWeapon {};
 
-    class AIRDEF_RadarEmitter_Base: StaticMGWeapon
+    class AIRDEF_RadarEmitter_Base: StaticWeapon
     {
         scope = 1;
         displayName = "Air Defender Radar Emitter";
@@ -54,6 +55,8 @@ class CfgVehicles
         irTarget = 1;
         irTargetSize = 1.5;
         armor = 80;
+        class Turrets {};
+        class HitPoints {};
         class Components: Components
         {
             class SensorsManagerComponent

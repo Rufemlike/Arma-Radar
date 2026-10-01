@@ -47,11 +47,17 @@ if (isClass (configFile >> "CfgPatches" >> "cba_main")) then {
             };
         } else {
             if (missionNamespace getVariable ["AIRDEF_requireTerminal", false]) then {
-                private _nearTerminals = (nearestObjects [player, ["All"], 4]) select {
-                    (_x getVariable ["AIRDEF_isTerminal", false]) && { alive _x }
+                private _nearTerminals = (nearestObjects [player, ["All"], 30]) select {
+                    ((_x getVariable ["AIRDEF_isTerminal", false]) ||
+                     (_x getVariable ["AIRDEF_isRadar", false]) ||
+                     (_x getVariable ["AIRDEF_isRadarBoard", false]) ||
+                     ((typeOf _x) in AIRDEF_radarClasses) ||
+                     ((typeOf _x) in ["Land_Laptop_F", "Land_Laptop_02_F", "Land_Laptop_03_F", "Land_PCSet_01_case_F"])) &&
+                    { alive _x } &&
+                    { (player distance _x) <= (((sizeOf (typeOf _x)) * 0.75 max 4.5) min 30) }
                 };
                 if (count _nearTerminals == 0) exitWith {
-                    systemChat "[AIRDEF] Доступ к РЛС открыт только через физический терминал на базе!";
+                    systemChat "[AIRDEF] Доступ к РЛС открыт только через физический терминал или пост РЛС на базе!";
                 };
                 [] spawn AIRDEF_fnc_openRadar;
             } else {
@@ -70,14 +76,30 @@ if (isClass (configFile >> "CfgPatches" >> "cba_main")) then {
         try {
             [] call AIRDEF_fnc_scanTargets;
 
-            // Auto-setup terminals for objects marked with AIRDEF_isTerminal (excluding humans)
+            // Auto-setup terminals for objects marked with AIRDEF_isTerminal, radars, and terminal props (excluding humans)
             if (hasInterface) then {
                 private _terminals = (allMissionObjects "All") select {
-                    !(_x isKindOf "CAManBase") && { (_x getVariable ["AIRDEF_isTerminal", false]) } && { !(_x getVariable ["AIRDEF_terminalActionAdded", false]) }
+                    !(_x isKindOf "CAManBase") && {
+                        (_x getVariable ["AIRDEF_isTerminal", false]) ||
+                        (_x getVariable ["AIRDEF_isRadar", false]) ||
+                        (_x getVariable ["AIRDEF_isRadarBoard", false]) ||
+                        ((typeOf _x) in AIRDEF_radarClasses) ||
+                        ((typeOf _x) in ["Land_Laptop_F", "Land_Laptop_02_F", "Land_Laptop_03_F", "Land_PCSet_01_case_F", "Land_TripodScreen_01_large_F", "Land_FlatTV_01_F", "Land_NoticeBoard_F"])
+                    } && {
+                        !(_x getVariable ["AIRDEF_terminalActionAdded", false])
+                    }
                 };
                 {
                     [_x] call AIRDEF_fnc_setupTerminal;
                 } forEach _terminals;
+
+                // Also ensure all currently active radars have terminal action
+                {
+                    private _rObj = _x select 0;
+                    if (!isNull _rObj && { !(_rObj getVariable ["AIRDEF_terminalActionAdded", false]) }) then {
+                        [_rObj] call AIRDEF_fnc_setupTerminal;
+                    };
+                } forEach (missionNamespace getVariable ["AIRDEF_activeRadars", []]);
 
                 // Auto-setup 3D Tactical Radar Boards (ONLY objects explicitly given AIRDEF_isRadarBoard parameter or enabled in Zeus)
                 private _boardObjects = (allMissionObjects "All") select {

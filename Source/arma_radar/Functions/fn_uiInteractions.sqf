@@ -77,8 +77,8 @@ switch (_actionType) do {
             private _selectedName = "";
             private _airportId = -1;
 
-            private _isAptHit   = if (_clickScreenX >= 0) then { _minAptDist <= 0.050 } else { _minAptDist <= 3000 };
-            private _isRadarHit = if (_clickScreenX >= 0) then { _minRadarDist <= 0.045 } else { _minRadarDist <= 1500 };
+            private _isAptHit   = if (_clickScreenX >= 0) then { _minAptDist <= 0.075 } else { _minAptDist <= 4000 };
+            private _isRadarHit = if (_clickScreenX >= 0) then { _minRadarDist <= 0.050 } else { _minRadarDist <= 1800 };
 
             if (_isAptHit && count _chosenAirport > 0) then {
                 _chosenAirport params ["_aptObj", "_aptPos", "_aptName"];
@@ -315,7 +315,7 @@ switch (_actionType) do {
                 };
             } forEach (missionNamespace getVariable ["AIRDEF_activeRadars", []]);
             
-            private _isRadarHit = if (_clickScreenX >= 0) then { _minRadarDist <= 0.024 } else { _minRadarDist <= 500 };
+            private _isRadarHit = if (_clickScreenX >= 0) then { _minRadarDist <= 0.045 } else { _minRadarDist <= 1200 };
             
             if (count _closestRadar > 0 && _isRadarHit) then {
                 _closestRadar params ["_rObj", "_rPos", "_rRange", "_rName"];
@@ -367,7 +367,7 @@ switch (_actionType) do {
 
     // ================= RIGHT CLICK: QUICK COMMAND =================
     case "MAP_CLICK_COMMAND": {
-        private _worldPos = _param;
+        private _worldPos = if (_param isEqualType [] && { count _param > 0 && { (_param select 0) isEqualType [] } }) then { _param select 0 } else { _param };
         if (!isNull AIRDEF_selectedUnit && { alive AIRDEF_selectedUnit }) then {
             private _crewPlayers = (crew AIRDEF_selectedUnit) select { isPlayer _x };
             if (count _crewPlayers > 0) then {

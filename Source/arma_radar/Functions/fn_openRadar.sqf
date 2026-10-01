@@ -112,7 +112,7 @@ _map ctrlAddEventHandler ["MouseButtonDown", {
             private _threatText  = if (_missiles > 0) then {"ВНИМАНИЕ: ЗАСЕЧЕН ПУСК РАКЕТЫ!"} else { if (_hostiles > 0) then {"ВОЗДУШНАЯ ТРЕВОГА"} else {"НОРМА"} };
             
             _ctrlStatus ctrlSetStructuredText parseText format [
-                "<t color='%1' font='EtelkaMonospacePro'>СТАТУС: [%2] | РЛС В СЕТИ: %3 | ВСЕГО: %4 | СОЮЗНЫХ: %5 | ВРАЖЕСКИХ: %6 | DATALINK: %7 | РАКЕТ: %8</t>",
+                "<t color='%1' font='RobotoCondensed'>СТАТУС: [%2] | РЛС В СЕТИ: %3 | ВСЕГО: %4 | СОЮЗНЫХ: %5 | ВРАЖЕСКИХ: %6 | DATALINK: %7 | РАКЕТ: %8</t>",
                 _threatColor, _threatText, count AIRDEF_activeRadars, _allTracks, _friendlies, _hostiles, _dataLink, _missiles
             ];
         };

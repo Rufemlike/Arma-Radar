@@ -18,6 +18,7 @@ if (isNil "AIRDEF_showRings") then { AIRDEF_showRings = true; };
 if (isNil "AIRDEF_showSweep") then { AIRDEF_showSweep = true; };
 if (isNil "AIRDEF_showVectors") then { AIRDEF_showVectors = true; };
 if (isNil "AIRDEF_sweepSpeed") then { AIRDEF_sweepSpeed = 60; };
+if (isNil "AIRDEF_continuousUpdate") then { AIRDEF_continuousUpdate = false; };
 
 // Register CBA settings if CBA is available
 if (isClass (configFile >> "CfgPatches" >> "cba_main") || !isNil "CBA_fnc_addSetting") then {
@@ -66,6 +67,16 @@ if (isClass (configFile >> "CfgPatches" >> "cba_main") || !isNil "CBA_fnc_addSet
         "AIRDEF_requireTerminal",
         "CHECKBOX",
         ["Доступ к РЛС только через терминалы", "Если включено — радар открывается только при физическом подходе к объекту-терминалу на базе"],
+        "Air Defender Radar",
+        false,
+        false
+    ] call CBA_fnc_addSetting;
+
+    // 6. Continuous target update mode (Live vs Sweep)
+    [
+        "AIRDEF_continuousUpdate",
+        "CHECKBOX",
+        ["Непрерывное обновление целей (Live)", "Если включено, отметки целей на экране двигаются непрерывно в реальном времени. Если выключено — положение целей обновляется только при проходе сканирующего луча РЛС."],
         "Air Defender Radar",
         false,
         false

@@ -67,8 +67,23 @@ switch (_orderType) do {
     };
 
     case "CAP": {
-        private _patrolPos = if (_targetOrPos isEqualType objNull) then { getPosATL _targetOrPos } else { _targetOrPos };
-        if (isNil "_patrolPos" || { count _patrolPos < 2 }) exitWith {};
+        private _patrolPos = [0, 0, 0];
+        if (_targetOrPos isEqualType objNull && { !isNull _targetOrPos }) then {
+            _patrolPos = getPosATL _targetOrPos;
+        } else {
+            if (_targetOrPos isEqualType [] && { count _targetOrPos > 0 }) then {
+                if ((_targetOrPos select 0) isEqualType []) then {
+                    _patrolPos = _targetOrPos select 0;
+                } else {
+                    _patrolPos = _targetOrPos;
+                };
+            };
+        };
+        if (count _patrolPos >= 2 && { (_patrolPos select 0) isEqualType 0 && (_patrolPos select 1) isEqualType 0 }) then {
+            _patrolPos = [_patrolPos select 0, _patrolPos select 1, if (count _patrolPos > 2 && { (_patrolPos select 2) isEqualType 0 }) then { _patrolPos select 2 } else { 0 }];
+        } else {
+            _patrolPos = getPosATL _aircraft;
+        };
 
         while {count (waypoints _grp) > 0} do {
             deleteWaypoint ((waypoints _grp) select 0);
@@ -100,16 +115,22 @@ switch (_orderType) do {
         _grp setBehaviour "SAFE";
         _grp setSpeedMode "NORMAL";
 
-        private _rtbPos = if (_targetOrPos isEqualType []) then {
-            _targetOrPos
+        private _rtbPos = [0, 0, 0];
+        if (_targetOrPos isEqualType objNull && { !isNull _targetOrPos }) then {
+            _rtbPos = getPosATL _targetOrPos;
         } else {
-            if (!isNull _targetOrPos) then { getPosATL _targetOrPos } else {
-                if (_airportId isEqualType 0 && { _airportId >= 0 }) then {
-                    getAirportPosition _airportId
+            if (_targetOrPos isEqualType [] && { count _targetOrPos > 0 }) then {
+                if ((_targetOrPos select 0) isEqualType []) then {
+                    _rtbPos = _targetOrPos select 0;
                 } else {
-                    getPosATL _aircraft
-                }
-            }
+                    _rtbPos = _targetOrPos;
+                };
+            };
+        };
+        if (count _rtbPos >= 2 && { (_rtbPos select 0) isEqualType 0 && (_rtbPos select 1) isEqualType 0 }) then {
+            _rtbPos = [_rtbPos select 0, _rtbPos select 1, if (count _rtbPos > 2 && { (_rtbPos select 2) isEqualType 0 }) then { _rtbPos select 2 } else { 0 }];
+        } else {
+            _rtbPos = getPosATL _aircraft;
         };
 
         // Create flight waypoint to designated base

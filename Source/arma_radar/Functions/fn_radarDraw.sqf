@@ -25,7 +25,11 @@ if (_userSide in [sideLogic, civilian, sideUnknown]) then {
 // Ensure active selected radar is valid
 private _radarObjList = AIRDEF_activeRadars apply { _x select 0 };
 if (isNil "AIRDEF_selectedRadar" || { isNull AIRDEF_selectedRadar } || { !(AIRDEF_selectedRadar in _radarObjList) }) then {
-    AIRDEF_selectedRadar = if (count AIRDEF_activeRadars > 0) then { (AIRDEF_activeRadars select 0) select 0 } else { objNull };
+    if (count AIRDEF_activeRadars > 0) then {
+        AIRDEF_selectedRadar = (AIRDEF_activeRadars select 0) select 0;
+    } else {
+        AIRDEF_selectedRadar = objNull;
+    };
 };
 
 // Warning banner if all radars destroyed or none active
@@ -41,7 +45,7 @@ if (count AIRDEF_activeRadars == 0) then {
             "[СВЯЗЬ С РЛС ПОТЕРЯНА — СТАНЦИЯ УНИЧТОЖЕНА ИЛИ ОБЕСТОЧЕНА]",
             0,
             0.038,
-            "EtelkaMonospaceProBold",
+            "RobotoCondensed",
             "center"
         ];
     };
@@ -122,7 +126,7 @@ if (count AIRDEF_activeRadars == 0) then {
                     format ["%1 КМ", _distKm],
                     0,
                     0.024,
-                    "EtelkaMonospacePro",
+                    "RobotoCondensed",
                     "center"
                 ];
             } forEach [0.25, 0.50, 0.75, 1.0];
@@ -143,7 +147,7 @@ if (count AIRDEF_activeRadars == 0) then {
                 _labelText,
                 0,
                 0.028,
-                "EtelkaMonospaceProBold",
+                "RobotoCondensed",
                 "center"
             ];
         };
@@ -170,87 +174,66 @@ if (count AIRDEF_activeRadars == 0) then {
             };
         };
     } else {
-        // === SECONDARY RADAR STATION: CLEAN FAINT OUTLINE ONLY ===
+        // === SECONDARY RADAR STATION: CLEAN VISIBLE COVERAGE CIRCLE ===
         if (AIRDEF_showRings) then {
-            private _secColor = if (_isEmissionOff) then { [0.8, 0.5, 0.1, 0.20] } else { [0, 0.7, 0.25, 0.25] };
+            private _secColor = if (_isEmissionOff) then { [0.9, 0.55, 0.15, 0.50] } else { [0, 0.85, 0.35, 0.55] };
             _map drawEllipse [_rCenter2D, _rRange, _rRange, 0, _secColor, ""];
         };
     };
     
-    // Station icon & label
-    if (AIRDEF_filter in ["ALL", "FRIENDLY", "DATALINK"]) then {
-        private _iconColor = if (_isEmissionOff) then {
-            [1, 0.6, 0.2, 0.95]
-        } else {
-            if (_isSelectedStation) then { [0.2, 1, 0.4, 0.95] } else { [0.1, 0.65, 0.25, 0.75] }
-        };
-        private _iconText = if (_isEmissionOff) then {
-            format ["[РАДИОМОЛЧАНИЕ] %1", _rName]
-        } else {
-            if (_isSelectedStation) then { format ["[*] %1", _rName] } else { format ["[РЛС] %1", _rName] }
-        };
-        _map drawIcon [
-            "\A3\ui_f\data\map\markers\nato\b_installation.paa",
-            _iconColor,
-            _rCenter2D,
-            22, 22, 0,
-            _iconText,
-            0,
-            0.026,
-            "EtelkaMonospaceProBold",
-            "right"
-        ];
+    // Station icon & label (ALWAYS visible for all friendly radars, independent of target filters)
+    private _iconColor = if (_isEmissionOff) then {
+        [1, 0.6, 0.2, 0.95]
+    } else {
+        if (_isSelectedStation) then { [0.2, 1, 0.4, 0.95] } else { [0, 0.85, 0.35, 0.85] }
     };
-            0.026,
-            "EtelkaMonospaceProBold",
-            "right"
-        ];
+    
+    // Station anchor circle
+    if (_isSelectedStation) then {
+        _map drawEllipse [_rCenter2D, 350, 350, 0, [0.2, 1, 0.4, 0.70 + 0.30 * sin (time * 6)], ""];
+    } else {
+        _map drawEllipse [_rCenter2D, 220, 220, 0, [0, 0.85, 0.35, 0.45], ""];
     };
+    
+    private _iconText = if (_isEmissionOff) then {
+        format ["[ТИШИНА/ВЫКЛ] %1 (%2 КМ)", _rName, round (_rRange / 1000)]
+    } else {
+        if (_isSelectedStation) then { 
+            format ["[*] %1 (%2 КМ) [ВЫБРАН]", _rName, round (_rRange / 1000)] 
+        } else { 
+            format ["[РЛС] %1 (%2 КМ) [КЛИК: ВЫБОР]", _rName, round (_rRange / 1000)] 
+        }
+    };
+    _map drawIcon [
+        "\A3\ui_f\data\map\markers\nato\b_installation.paa",
+        _iconColor,
+        _rCenter2D,
+        26, 26, 0,
+        _iconText,
+        0,
+        0.026,
+        "RobotoCondensed",
+        "right"
+    ];
 } forEach AIRDEF_activeRadars;
 
 
 // ================= 1.5. AIRPORTS & RECOVERY BASES =================
 if (isNil "AIRDEF_discoveredAirports" || { count (missionNamespace getVariable ["AIRDEF_discoveredAirports", []]) == 0 }) then {
     private _airports = [];
-
-    // 1. Engine airports (allAirports)
-    {
-        private _apt = _x;
-        private _pos = if (_apt isEqualType 0) then { getAirportPosition _apt } else { getPosATL _apt };
-        if (count _pos >= 2 && { !(_pos isEqualTo [0,0,0]) }) then {
-            private _name = "";
-            private _locs = nearestLocations [_pos, ["Airport", "NameCityCapital", "NameCity", "NameVillage", "NameLocal"], 3000];
-            if (count _locs > 0) then {
-                private _locText = text (_locs select 0);
-                if (_locText != "") then {
-                    _name = format ["Аэродром %1", _locText];
-                };
-            };
-            if (_name == "") then {
-                _name = if (_apt isEqualType 0) then { format ["Аэродром #%1", _apt] } else { getText (configFile >> "CfgVehicles" >> typeOf _apt >> "displayName") };
-            };
-            _airports pushBack [_apt, _pos, _name, "AIRPORT"];
-        };
-    } forEach allAirports;
-
-    // 2. Named map locations of type "Airport" (if not already close to an existing entry)
     private _wSize = if (isNil "worldSize" || { worldSize <= 0 }) then { 40000 } else { worldSize };
-    private _aptLocs = nearestLocations [[_wSize / 2, _wSize / 2, 0], ["Airport"], _wSize max 40000];
+    private _wCenter = [_wSize / 2, _wSize / 2, 0];
+
+    // 1. Named map locations of type "Airport" (covers all standard Arma 3 and modded airbases)
+    private _aptLocs = nearestLocations [_wCenter, ["Airport"], _wSize max 40000];
     {
         private _locPos = locationPosition _x;
         private _locText = text _x;
         if (_locText == "") then { _locText = "Аэродром"; };
-        private _alreadyAdded = false;
-        {
-            if ((_x select 1) distance2D _locPos < 1500) exitWith { _alreadyAdded = true; };
-        } forEach _airports;
-
-        if (!_alreadyAdded) then {
-            _airports pushBack [-1, _locPos, _locText, "AIRPORT"];
-        };
+        _airports pushBack [-1, _locPos, _locText, "AIRPORT"];
     } forEach _aptLocs;
 
-    // 3. Aircraft carriers on the map
+    // 2. Aircraft carriers on the map
     private _carriers = (allMissionObjects "Land_Carrier_01_base_F") + (allMissionObjects "Carrier_01_base_F");
     {
         private _cPos = getPosATL _x;
@@ -263,46 +246,74 @@ if (isNil "AIRDEF_discoveredAirports" || { count (missionNamespace getVariable [
         };
     } forEach _carriers;
 
+    // 3. Helipads / Forward Operating Bases
+    private _helipads = nearestObjects [_wCenter, ["Helipad_Base_F", "Land_HelipadCircle_F", "Land_HelipadCivil_F", "Land_HelipadSquare_F"], _wSize max 40000];
+    {
+        if (_forEachIndex < 12) then {
+            private _hPos = getPosATL _x;
+            private _alreadyAdded = false;
+            {
+                if ((_x select 1) distance2D _hPos < 600) exitWith { _alreadyAdded = true; };
+            } forEach _airports;
+            if (!_alreadyAdded) then {
+                _airports pushBack [_x, _hPos, "Вертодром", "HELIPAD"];
+            };
+        };
+    } forEach _helipads;
+
     AIRDEF_discoveredAirports = _airports;
 };
 
 private _isRtbPending = (missionNamespace getVariable ["AIRDEF_pendingOrder", ""]) == "RTB";
 
+private _defaultAptIcon = getText (configFile >> "CfgMarkers" >> "loc_Airport" >> "icon");
+if (_defaultAptIcon == "") then {
+    _defaultAptIcon = getText (configFile >> "CfgLocationTypes" >> "Airport" >> "texture");
+};
+if (_defaultAptIcon == "") then {
+    _defaultAptIcon = "\A3\ui_f\data\map\markers\nato\b_air.paa";
+};
+
+private _defaultHeliIcon = getText (configFile >> "CfgMarkers" >> "loc_Heliport" >> "icon");
+if (_defaultHeliIcon == "") then {
+    _defaultHeliIcon = "\A3\ui_f\data\map\markers\nato\b_air.paa";
+};
+
 {
-    _x params ["_aptObj", "_aptPos", "_aptName", "_aptType"];
+    _x params ["_aptObj", "_aptPos", "_aptName", ["_aptType", "AIRPORT"]];
     private _aptPos2D = [_aptPos select 0, _aptPos select 1, 0];
+    private _iconPath = if (_aptType == "HELIPAD") then { _defaultHeliIcon } else { _defaultAptIcon };
 
     if (_isRtbPending) then {
-        // Highlight airports during RTB selection mode
-        private _pulse = 0.65 + 0.35 * sin (time * 8);
+        // Highlight airports during RTB selection mode: compact tactical bracket
+        private _pulse = 0.70 + 0.30 * sin (time * 8);
         private _highlightColor = [0.2, 1, 0.95, _pulse];
 
-        // Pulsing selection rings around airport
-        _map drawEllipse [_aptPos2D, 1200, 1200, 0, _highlightColor, ""];
-        _map drawEllipse [_aptPos2D, 1600, 1600, 0, [0.2, 1, 0.95, _pulse * 0.4], ""];
+        _map drawEllipse [_aptPos2D, 500, 500, 0, _highlightColor, ""];
+        _map drawEllipse [_aptPos2D, 300, 300, 0, [0.2, 1, 0.95, _pulse * 0.6], ""];
 
         _map drawIcon [
-            "\A3\ui_f\data\map\mapcontrol\Airport_ca.paa",
+            _iconPath,
             _highlightColor,
             _aptPos2D,
-            28, 28, 0,
-            format ["[ВПП: КЛИК ДЛЯ ВЫБОРА] %1", _aptName],
+            30, 30, 0,
+            format [" [ВПП: КЛИК ДЛЯ ПОСАДКИ] %1", _aptName],
             0,
-            0.030,
-            "EtelkaMonospaceProBold",
+            0.028,
+            "RobotoCondensed",
             "right"
         ];
     } else {
         // Normal clean tactical airfield icon
         _map drawIcon [
-            "\A3\ui_f\data\map\mapcontrol\Airport_ca.paa",
-            [0.2, 0.85, 0.7, 0.75],
+            _iconPath,
+            [0.2, 0.85, 0.70, 0.85],
             _aptPos2D,
-            22, 22, 0,
-            format ["[ВПП] %1", _aptName],
+            24, 24, 0,
+            format [" [ВПП] %1", _aptName],
             0,
             0.024,
-            "EtelkaMonospacePro",
+            "RobotoCondensed",
             "right"
         ];
     };
@@ -321,7 +332,7 @@ if (_isRtbPending) then {
             "[РЕЖИМ RTB: КЛИКНИТЕ АЭРОДРОМ ИЛИ БАЗУ ДЛЯ ВОЗВРАТА]",
             0,
             0.034,
-            "EtelkaMonospaceProBold",
+            "RobotoCondensed",
             "center"
         ];
     };
@@ -347,7 +358,7 @@ if (_isRtbPending) then {
             format ["ЗОНА ПВО ВРАГА: %1 (%2 КМ)", _rName, round (_rRange / 1000)],
             0,
             0.026,
-            "EtelkaMonospacePro",
+            "RobotoCondensed",
             "center"
         ];
     };
@@ -361,7 +372,7 @@ if (_isRtbPending) then {
             format ["[!] %1", _rName],
             0,
             0.026,
-            "EtelkaMonospaceProBold",
+            "RobotoCondensed",
             "right"
         ];
     };
@@ -433,22 +444,23 @@ private _revPeriod = (360 / (_sweepSpeed max 10)) max 4.0;
             _trailHistory = _pHist;
         };
 
+        private _continuous = missionNamespace getVariable ["AIRDEF_continuousUpdate", false];
+
         if (_isFriendlyTrack && !_isMissile) then {
             // Friendly aircraft transmit live GPS coordinates via IFF transponder & DataLink
             _drawnPos = _realPosASL;
             _drawnDir = if (!isNull _obj) then { getDir _obj } else { _dir };
             _drawnSpeed = if (!isNull _obj) then { round (speed _obj) } else { _speedKmh };
             _drawnAlt = round (_realPosASL select 2);
-            if (_wasSwept) then {
+            if (_wasSwept || _continuous) then {
                 _lastSweepTime = time;
             };
             if (!isNull _obj) then {
                 _obj setVariable ["AIRDEF_plotData", [_drawnPos, _drawnDir, _drawnSpeed, _drawnAlt, _lastSweepTime, _trailHistory], false];
             };
         } else {
-            // Hostiles & missiles are detected solely by primary radar pulses.
-            // Position updates ONLY when rotating radar beam sweeps across azimuth!
-            if (_wasSwept || count _plotData == 0) then {
+            // Hostiles & missiles: update either when radar beam sweeps across them, OR continuously if continuous mode is enabled!
+            if (_wasSwept || _continuous || count _plotData == 0) then {
                 if (_drawnPos distance2D _realPosASL > 30) then {
                     _trailHistory pushBack [_drawnPos, _drawnDir, _lastSweepTime];
                     if (count _trailHistory > 4) then {
@@ -469,12 +481,14 @@ private _revPeriod = (360 / (_sweepSpeed max 10)) max 4.0;
 
         // 3. Phosphor Persistence & Decay Calculation
         private _timeSinceSweep = (time - _lastSweepTime) max 0;
-        private _phosphorAlpha = if (_timeSinceSweep <= _revPeriod) then {
-            // Decay from 1.0 down to 0.40 over one antenna revolution
-            (1.0 - ((_timeSinceSweep / _revPeriod) * 0.60)) max 0.40
-        } else {
-            // Target lost / shielded behind terrain: gradual fadeout into darkness
-            (0.40 - (((_timeSinceSweep - _revPeriod) / 12) * 0.40)) max 0.05
+        private _phosphorAlpha = if (_continuous) then { 1.0 } else {
+            if (_timeSinceSweep <= _revPeriod) then {
+                // Decay from 1.0 down to 0.40 over one antenna revolution
+                (1.0 - ((_timeSinceSweep / _revPeriod) * 0.60)) max 0.40
+            } else {
+                // Target lost / shielded behind terrain: gradual fadeout into darkness
+                (0.40 - (((_timeSinceSweep - _revPeriod) / 12) * 0.40)) max 0.05
+            }
         };
 
         private _drawPos2D = [_drawnPos select 0, _drawnPos select 1, 0];
@@ -521,7 +535,7 @@ private _revPeriod = (360 / (_sweepSpeed max 10)) max 4.0;
                 format ["!РАКЕТА! %1 KM/H | H:%2M", _drawnSpeed, _drawnAlt],
                 0,
                 0.030,
-                "EtelkaMonospaceProBold",
+                "RobotoCondensed",
                 "right"
             ];
 
@@ -548,7 +562,7 @@ private _revPeriod = (360 / (_sweepSpeed max 10)) max 4.0;
                     format ["%1 [H:%2 SPD:%3]", _name, _drawnAlt, _drawnSpeed],
                     0,
                     0.028,
-                    "EtelkaMonospacePro",
+                    "RobotoCondensed",
                     "right"
                 ];
 
@@ -578,7 +592,7 @@ private _revPeriod = (360 / (_sweepSpeed max 10)) max 4.0;
                     format ["%1 %2 [H:%3 SPD:%4]", _prefix, _name, _drawnAlt, _drawnSpeed],
                     0,
                     0.027,
-                    "EtelkaMonospacePro",
+                    "RobotoCondensed",
                     "right"
                 ];
 
@@ -626,7 +640,7 @@ if (!isNull AIRDEF_targetUnit && { alive AIRDEF_targetUnit }) then {
             format ["КУРС: %1° | ДИСТ: %2 КМ", _bearing, round (_dist / 1000)],
             0,
             0.030,
-            "EtelkaMonospaceProBold",
+            "RobotoCondensed",
             "center"
         ];
     };

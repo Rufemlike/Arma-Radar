@@ -164,7 +164,7 @@ if (isNil "AIRDEF_radarBoardDraw3D") then {
                     _topText,
                     0,
                     0.024,
-                    "EtelkaMonospaceProBold",
+                    "RobotoCondensed",
                     "center"
                 ];
                 
@@ -219,7 +219,7 @@ if (isNil "AIRDEF_radarBoardDraw3D") then {
                             _txt,
                             0,
                             0.020,
-                            "EtelkaMonospacePro",
+                            "RobotoCondensed",
                             "right"
                         ];
                     };
